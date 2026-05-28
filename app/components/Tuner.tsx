@@ -119,7 +119,7 @@ export default function Tuner({ onClose }: TunerProps) {
   const analyserRef = useRef<AnalyserNode | null>(null)
   const mediaStreamRef = useRef<MediaStream | null>(null)
   const animationFrameRef = useRef<number | null>(null)
-  const bufferRef = useRef<Float32Array | null>(null)
+  const bufferRef = useRef<Float32Array<ArrayBuffer> | null>(null)
 
   const startListening = useCallback(async () => {
     try {
