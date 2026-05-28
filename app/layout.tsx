@@ -2,12 +2,12 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'iSkala | Guitar Scale Reference',
+  title: 'FretWiki | Guitar Scale Reference',
   description: 'Learn guitar scales in any key with interactive fretboard, metronome, backing tracks, and practice tips.',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'iSkala',
+    title: 'FretWiki',
   },
 }
 

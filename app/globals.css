@@ -180,11 +180,24 @@ header {
   object-fit: contain;
 }
 
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
 .brand-name {
   font-size: 1.5rem;
   font-weight: 700;
   color: #fff;
   letter-spacing: 1px;
+}
+
+.brand-sub {
+  font-size: 0.7rem;
+  color: #888;
+  letter-spacing: 0.5px;
+  font-weight: 400;
 }
 
 .header-title {
@@ -3136,6 +3149,10 @@ footer {
 
   .brand-name {
     font-size: 1.1rem;
+  }
+
+  .brand-sub {
+    font-size: 0.6rem;
   }
 
   header h1 {
