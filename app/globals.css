@@ -180,11 +180,24 @@ header {
   object-fit: contain;
 }
 
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
 .brand-name {
   font-size: 1.5rem;
   font-weight: 700;
   color: #fff;
   letter-spacing: 1px;
+}
+
+.brand-sub {
+  font-size: 0.7rem;
+  color: #888;
+  letter-spacing: 0.5px;
+  font-weight: 400;
 }
 
 .header-title {
@@ -279,9 +292,32 @@ main {
   flex-shrink: 0;
 }
 
-.scale-select {
+.scale-select-prominent {
   width: auto;
-  min-width: 140px;
+  min-width: 200px;
+  padding: 0.65rem 2.25rem 0.65rem 1rem !important;
+  font-size: 1.05rem !important;
+  font-weight: 600 !important;
+  border: 2px solid rgba(52, 152, 219, 0.5) !important;
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.15), rgba(41, 128, 185, 0.08)) !important;
+  color: #5dade2 !important;
+  box-shadow: 0 0 16px rgba(52, 152, 219, 0.15), 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  transition: all 0.25s ease;
+  letter-spacing: 0.3px;
+}
+
+.scale-select-prominent:hover {
+  border-color: rgba(52, 152, 219, 0.8) !important;
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.25), rgba(41, 128, 185, 0.15)) !important;
+  box-shadow: 0 0 24px rgba(52, 152, 219, 0.25), 0 6px 16px rgba(0, 0, 0, 0.3) !important;
+  transform: translateY(-1px);
+}
+
+.scale-select-prominent:focus {
+  border-color: rgba(52, 152, 219, 1) !important;
+  box-shadow: 0 0 28px rgba(52, 152, 219, 0.35), 0 6px 16px rgba(0, 0, 0, 0.3) !important;
+  outline: none;
 }
 
 .display-buttons {
@@ -3174,6 +3210,10 @@ footer {
     font-size: 1.1rem;
   }
 
+  .brand-sub {
+    font-size: 0.6rem;
+  }
+
   header h1 {
     font-size: 1.4rem;
   }
@@ -3225,10 +3265,10 @@ footer {
     height: 36px;
   }
 
-  .scale-select {
-    min-width: 120px;
-    font-size: 0.85rem;
-    padding: 0.4rem 0.6rem;
+  .scale-select-prominent {
+    min-width: 160px !important;
+    font-size: 0.95rem !important;
+    padding: 0.55rem 2rem 0.55rem 0.75rem !important;
   }
 
   .display-btn {

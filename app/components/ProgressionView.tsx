@@ -151,8 +151,8 @@ export default function ProgressionView({ onClose }: ProgressionViewProps) {
                 ))}
               </div>
               <Image 
-                src="/logo.png" 
-                alt="iSkala" 
+                src="/nixx-logo.PNG" 
+                alt="FretWiki" 
                 width={60} 
                 height={60}
                 className="comparison-logo-img"

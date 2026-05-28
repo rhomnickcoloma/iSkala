@@ -176,7 +176,6 @@ export default function Fretboard() {
     const key = `${stringIndex}-${fret}`
 
     if (clickTimerRef.current) {
-      // Second click within window -> double-tap = highlight
       clearTimeout(clickTimerRef.current)
       clickTimerRef.current = null
       setHighlightedPositions(prev => {
@@ -186,10 +185,8 @@ export default function Fretboard() {
         return next
       })
     } else {
-      // First click -> wait to see if a second comes
       clickTimerRef.current = setTimeout(() => {
         clickTimerRef.current = null
-        // Single click = toggle hide
         setHiddenPositions(prev => {
           const newSet = new Set(prev)
           if (newSet.has(key)) newSet.delete(key)
@@ -699,7 +696,7 @@ export default function Fretboard() {
             id="scale-select"
             value={selectedScale} 
             onChange={(e) => setSelectedScale(e.target.value)}
-            className="select-input scale-select"
+            className="select-input scale-select-prominent"
           >
             {Object.entries(SCALES).map(([key, scale]) => (
               <option key={key} value={key}>{scale.name}</option>

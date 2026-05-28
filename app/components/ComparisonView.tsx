@@ -245,8 +245,8 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
                 ))}
               </div>
               <Image 
-                src="/logo.png" 
-                alt="iSkala" 
+                src="/nixx-logo.PNG" 
+                alt="FretWiki" 
                 width={60} 
                 height={60}
                 className="comparison-logo-img"
