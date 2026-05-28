@@ -199,6 +199,90 @@ export const SCALES: Record<string, { name: string; intervals: number[]; descrip
       'Transpose in major 3rds (same notes)'
     ]
   },
+  'altered': {
+    name: 'Altered (Super Locrian)',
+    intervals: [0, 1, 3, 4, 6, 8, 10],
+    description: 'All altered tensions (♭9, #9, ♭5, #5) for dominant 7th chords resolving to minor',
+    practice: [
+      'Use over V7alt chords resolving to minor',
+      'Practice the melodic minor a half step up',
+      'Work on jazz turnarounds (ii-V-i)',
+      'Emphasize the ♭9 and #9 tensions',
+      'Great for creating outside tension before resolution'
+    ]
+  },
+  'phrygian-dominant': {
+    name: 'Phrygian Dominant',
+    intervals: [0, 1, 4, 5, 7, 8, 10],
+    description: '5th mode of Harmonic Minor, Spanish/Middle Eastern dominant sound',
+    practice: [
+      'Use over V7 in minor key progressions',
+      'Emphasize the ♭2 and major 3rd contrast',
+      'Practice flamenco-style chord progressions',
+      'Work on Middle Eastern melodic phrases',
+      'Great for V7♭9 to minor resolutions'
+    ]
+  },
+  'lydian-dominant': {
+    name: 'Lydian Dominant',
+    intervals: [0, 2, 4, 6, 7, 9, 10],
+    description: '4th mode of Melodic Minor, bright dominant with #11',
+    practice: [
+      'Use over 7#11 chords',
+      'Practice over static dominant vamps',
+      'Work on tritone substitution lines',
+      'Emphasize the #4 for the bright sound',
+      'Great for non-resolving dominant chords'
+    ]
+  },
+  'mixolydian-b6': {
+    name: 'Mixolydian ♭6 (Hindu)',
+    intervals: [0, 2, 4, 5, 7, 8, 10],
+    description: '5th mode of Melodic Minor, dominant with exotic ♭6',
+    practice: [
+      'Use over V7 resolving to minor',
+      'Practice the ♭6 to 5 melodic movement',
+      'Work on melodic minor harmony concepts',
+      'Emphasize the contrast of major 3rd and ♭6',
+      'Great for V7♭13 chords'
+    ]
+  },
+  'bebop-dominant': {
+    name: 'Bebop Dominant',
+    intervals: [0, 2, 4, 5, 7, 9, 10, 11],
+    description: 'Mixolydian with added major 7th, keeps chord tones on downbeats',
+    practice: [
+      'Practice descending from root with eighth notes',
+      'Work on bebop-style chromatic lines',
+      'Keep chord tones landing on strong beats',
+      'Use over dominant 7th chord vamps',
+      'Great for swing and jazz phrasing'
+    ]
+  },
+  'quartal': {
+    name: 'Quartal (Stacked 4ths)',
+    intervals: [0, 5, 10, 3, 8, 1],
+    description: 'Built on stacking perfect fourths, modern jazz sound (So What, Herbie Hancock)',
+    practice: [
+      'Practice voicings stacking 4ths on each string set',
+      'Use over sus4, m7, and m11 chords',
+      'Work on McCoy Tyner and Herbie Hancock-style comping',
+      'Try parallel quartal movement up/down the neck',
+      'Great for modal jazz and open, ambiguous harmonies'
+    ]
+  },
+  'quartal-minor': {
+    name: 'Quartal Minor (Stacked 4ths)',
+    intervals: [0, 5, 10, 3, 8, 1],
+    description: 'Quartal harmony for minor: stacked perfect 4ths over minor chords (So What, Dm7, minor modal)',
+    practice: [
+      'Use over m7, m11, and minor modal vamps',
+      'Practice So What–style voicings (e.g. Dm7)',
+      'Work on parallel quartal movement in minor',
+      'Try comping over i–IV–i or i–♭VII in minor',
+      'Combine with natural minor and Dorian for lines'
+    ]
+  },
 }
 
 // Standard guitar tuning (low to high): E A D G B E
@@ -224,6 +308,27 @@ export function getScaleNotes(rootNote: string, scaleType: string): string[] {
 export function isRootNote(note: string, rootNote: string): boolean {
   return note === rootNote
 }
+
+// Get the dominant (V) note from a key
+export function getDominantNote(keyRoot: string, isMinor: boolean = false): string {
+  const rootIndex = NOTES.indexOf(keyRoot as typeof NOTES[number])
+  // V chord is always 7 semitones up from the root
+  const dominantIndex = (rootIndex + 7) % 12
+  return NOTES[dominantIndex]
+}
+
+// Scales suitable for dominant 7th chords (V7)
+export const DOMINANT_SCALES = [
+  'mixolydian',
+  'phrygian-dominant',
+  'altered',
+  'lydian-dominant',
+  'mixolydian-b6',
+  'diminished-half-whole',
+  'whole-tone',
+  'bebop-dominant',
+  'mixo-pentatonic',
+] as const
 
 // Check if a note is the blue note (♭5) in the scale
 export function isBlueNote(note: string, rootNote: string, scaleType: string): boolean {
