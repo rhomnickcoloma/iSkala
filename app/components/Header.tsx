@@ -3,7 +3,7 @@ export default function Header() {
     <header>
       <div className="header-content">
         <div className="brand">
-          <img src="/logo.png" alt="iSkala Logo" className="brand-logo" />
+          <img src="/nixx-logo.PNG" alt="iSkala Logo" className="brand-logo" />
           <span className="brand-name">iSkala</span>
         </div>
         <div className="header-title">
