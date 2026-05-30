@@ -9,7 +9,7 @@ export default function Header() {
     <header>
       <div className="header-content">
         <div className="brand">
-          <img src="/nixx-logo.PNG" alt="FretWiki Logo" className="brand-logo" />
+          <img src="/logo.png" alt="FretWiki Logo" className="brand-logo" />
           <div className="brand-text">
             <span className="brand-name">FretWiki</span>
             <span className="brand-sub">By NIXX Music</span>
