@@ -1,20 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useInstrument } from '../context/InstrumentContext'
 
 interface TunerProps {
   onClose: () => void
 }
-
-// Standard guitar tuning frequencies (Hz)
-const GUITAR_STRINGS = [
-  { note: 'E2', frequency: 82.41, string: 6 },
-  { note: 'A2', frequency: 110.00, string: 5 },
-  { note: 'D3', frequency: 146.83, string: 4 },
-  { note: 'G3', frequency: 196.00, string: 3 },
-  { note: 'B3', frequency: 246.94, string: 2 },
-  { note: 'E4', frequency: 329.63, string: 1 },
-]
 
 // All chromatic notes with frequencies for detection
 const NOTE_FREQUENCIES: { note: string; frequency: number }[] = []
@@ -108,6 +99,9 @@ function autoCorrelate(buffer: Float32Array, sampleRate: number): number {
 }
 
 export default function Tuner({ onClose }: TunerProps) {
+  const { instrument } = useInstrument()
+  const INSTRUMENT_STRINGS = instrument.tunerStrings
+
   const [isListening, setIsListening] = useState(false)
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   const [detectedFrequency, setDetectedFrequency] = useState<number | null>(null)
@@ -238,7 +232,7 @@ export default function Tuner({ onClose }: TunerProps) {
   const tuningStatus = getTuningStatus()
 
   // Check if detected note matches a guitar string
-  const matchingString = GUITAR_STRINGS.find(s => 
+  const matchingString = INSTRUMENT_STRINGS.find(s => 
     detectedNote && s.note === detectedNote
   )
 
@@ -246,7 +240,7 @@ export default function Tuner({ onClose }: TunerProps) {
     <div className="comparison-overlay">
       <div className="tuner-modal">
         <div className="comparison-header">
-          <h2>🎸 Guitar Tuner</h2>
+          <h2>{instrument.icon} {instrument.name} Tuner</h2>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
 
@@ -361,9 +355,9 @@ export default function Tuner({ onClose }: TunerProps) {
 
           {/* Guitar String Reference */}
           <div className="string-reference">
-            <h4>Standard Tuning Reference</h4>
+            <h4>{instrument.name} Standard Tuning</h4>
             <div className="strings-grid">
-              {GUITAR_STRINGS.map((string) => {
+              {INSTRUMENT_STRINGS.map((string) => {
                 const isActive = matchingString?.string === string.string && Math.abs(cents) <= 10
                 return (
                   <div 

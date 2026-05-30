@@ -3,8 +3,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 
 interface Bar {
-  chords: string[] // One chord per beat
+  chords: string[]
 }
+
+const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const
 
 // Note frequencies for chord generation
 const NOTE_FREQUENCIES: Record<string, number> = {
@@ -15,6 +17,16 @@ const NOTE_FREQUENCIES: Record<string, number> = {
   'G': 196.00, 'G#': 207.65, 'Ab': 207.65,
   'A': 220.00, 'A#': 233.08, 'Bb': 233.08,
   'B': 246.94,
+}
+
+function transposeChord(chord: string, semitones: number): string {
+  if (!chord || semitones === 0) return chord
+  const match = chord.match(/^([A-G]#?)(.*)/);
+  if (!match) return chord
+  const [, root, suffix] = match
+  const idx = ALL_NOTES.indexOf(root as typeof ALL_NOTES[number])
+  if (idx === -1) return chord
+  return ALL_NOTES[(idx + semitones + 12) % 12] + suffix
 }
 
 // Chord intervals (semitones from root)
@@ -33,6 +45,7 @@ const CHORD_INTERVALS: Record<string, number[]> = {
 export default function BackingTrackGenerator() {
   const [isOpen, setIsOpen] = useState<boolean>(false)
   const [isMinimized, setIsMinimized] = useState<boolean>(false)
+  const [selectedKey, setSelectedKey] = useState<string>('A')
   const [numBars, setNumBars] = useState<number>(4)
   const [timeSignature, setTimeSignature] = useState<number>(4)
   const [bpm, setBpm] = useState<number>(120)
@@ -53,16 +66,17 @@ export default function BackingTrackGenerator() {
   const activeChordRef = useRef<{ oscillators: OscillatorNode[]; gains: GainNode[]; chord: string } | null>(null)
   const lastChordRef = useRef<string>('')
 
-  // Common chord suggestions
-  const chordSuggestions = [
-    'A', 'Am', 'A7', 'Am7', 'Amaj7',
-    'B', 'Bm', 'B7', 'Bm7', 'Bmaj7',
-    'C', 'Cm', 'C7', 'Cm7', 'Cmaj7',
-    'D', 'Dm', 'D7', 'Dm7', 'Dmaj7',
-    'E', 'Em', 'E7', 'Em7', 'Emaj7',
-    'F', 'Fm', 'F7', 'Fm7', 'Fmaj7',
-    'G', 'Gm', 'G7', 'Gm7', 'Gmaj7',
-  ]
+  const keyIdx = ALL_NOTES.indexOf(selectedKey as typeof ALL_NOTES[number])
+  const diatonicIntervals = [0, 2, 4, 5, 7, 9, 11]
+  const diatonicQualities = ['', 'm', 'm', '', '', 'm', 'dim']
+  const diatonicNotes = diatonicIntervals.map(i => ALL_NOTES[(keyIdx + i) % 12])
+
+  const chordSuggestions = diatonicNotes.flatMap((note, i) => {
+    const q = diatonicQualities[i]
+    const base = note + q
+    const seventh = q === '' ? [note + '7', note + 'maj7'] : q === 'm' ? [note + 'm7'] : [note + 'dim']
+    return [base, ...seventh]
+  })
 
   // Initialize or resume AudioContext
   const getAudioContext = useCallback(async () => {
@@ -644,14 +658,23 @@ export default function BackingTrackGenerator() {
     })))
   }
 
-  // Preset progressions
   const presets = [
-    { name: 'I-IV-V-I (Blues)', chords: ['A', 'D', 'E', 'A'] },
-    { name: 'I-V-vi-IV (Pop)', chords: ['C', 'G', 'Am', 'F'] },
-    { name: 'ii-V-I (Jazz)', chords: ['Dm7', 'G7', 'Cmaj7', 'Cmaj7'] },
-    { name: 'i-iv-VII-III (Minor)', chords: ['Am', 'Dm', 'G', 'C'] },
-    { name: '12-Bar Blues', chords: ['A7', 'A7', 'A7', 'A7', 'D7', 'D7', 'A7', 'A7', 'E7', 'D7', 'A7', 'E7'] },
+    { name: 'I-IV-V-I (Blues)', baseKey: 'A', chords: ['A', 'D', 'E', 'A'] },
+    { name: 'I-V-vi-IV (Pop)', baseKey: 'C', chords: ['C', 'G', 'Am', 'F'] },
+    { name: 'ii-V-I (Jazz)', baseKey: 'C', chords: ['Dm7', 'G7', 'Cmaj7', 'Cmaj7'] },
+    { name: 'i-iv-VII-III (Minor)', baseKey: 'A', chords: ['Am', 'Dm', 'G', 'C'] },
+    { name: '12-Bar Blues', baseKey: 'A', chords: ['A7', 'A7', 'A7', 'A7', 'D7', 'D7', 'A7', 'A7', 'E7', 'D7', 'A7', 'E7'] },
   ]
+
+  const applyPreset = (preset: typeof presets[number]) => {
+    const baseIdx = ALL_NOTES.indexOf(preset.baseKey as typeof ALL_NOTES[number])
+    const semitones = (keyIdx - baseIdx + 12) % 12
+    const transposed = preset.chords.map(c => transposeChord(c, semitones))
+    if (transposed.length > numBars) {
+      setNumBars(transposed.length)
+    }
+    setTimeout(() => fillProgression(transposed), 50)
+  }
 
   // Get current chord being played
   const getCurrentChord = () => {
@@ -741,6 +764,20 @@ export default function BackingTrackGenerator() {
 
         {/* Controls */}
         <div className="backing-track-controls">
+          <div className="control-group">
+            <label>Key</label>
+            <select
+              value={selectedKey}
+              onChange={(e) => setSelectedKey(e.target.value)}
+              disabled={isPlaying}
+              className="select-input compact"
+            >
+              {ALL_NOTES.map(note => (
+                <option key={note} value={note}>{note}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="control-group">
             <label>Bars</label>
             <div className="number-input">
@@ -849,12 +886,7 @@ export default function BackingTrackGenerator() {
             <button 
               key={i}
               className="preset-btn"
-              onClick={() => {
-                if (preset.chords.length > numBars) {
-                  setNumBars(preset.chords.length)
-                }
-                setTimeout(() => fillProgression(preset.chords), 50)
-              }}
+              onClick={() => applyPreset(preset)}
               disabled={isPlaying}
             >
               {preset.name}

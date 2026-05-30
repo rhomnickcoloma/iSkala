@@ -1,4 +1,10 @@
+'use client'
+
+import { useInstrument } from '../context/InstrumentContext'
+
 export default function Header() {
+  const { instrument, setShowSelector } = useInstrument()
+
   return (
     <header>
       <div className="header-content">
@@ -10,10 +16,17 @@ export default function Header() {
           </div>
         </div>
         <div className="header-title">
-          <h1>🎸 Guitar Scale Reference</h1>
+          <h1>{instrument.icon} {instrument.name} Scale Reference</h1>
           <p className="subtitle">Interactive fretboard to learn scales in any key</p>
         </div>
-        <div className="header-spacer"></div>
+        <button
+          className="instrument-switch-btn"
+          onClick={() => setShowSelector(true)}
+          title="Change instrument"
+        >
+          {instrument.icon}
+          <span className="instrument-switch-label">{instrument.name}</span>
+        </button>
       </div>
     </header>
   )

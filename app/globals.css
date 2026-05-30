@@ -140,7 +140,7 @@ body::after {
 
 .container {
   width: 100%;
-  max-width: 100%;
+  max-width: 1500px;
   margin: 0 auto;
   padding: 1rem 3rem;
   min-height: 100vh;
@@ -2321,6 +2321,55 @@ main {
   color: #777;
 }
 
+.download-option-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0.25rem 0;
+}
+
+.download-rotation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  gap: 0.75rem;
+}
+
+.download-rotation-label {
+  font-size: 0.75rem;
+  color: #999;
+  white-space: nowrap;
+}
+
+.download-rotation-btns {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.download-rotation-btns .rotation-btn {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.7rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #999;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  font-weight: 600;
+}
+
+.download-rotation-btns .rotation-btn:hover {
+  border-color: rgba(52, 152, 219, 0.4);
+  color: #3498db;
+}
+
+.download-rotation-btns .rotation-btn.active {
+  background: rgba(52, 152, 219, 0.9);
+  border-color: rgba(52, 152, 219, 0.8);
+  color: #fff;
+}
+
 @media (max-width: 480px) {
   .tuner-display {
     flex-direction: column;
@@ -2421,9 +2470,7 @@ main {
 }
 
 .panel-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(26, 26, 26, 0.8);
   backdrop-filter: blur(4px);
@@ -2434,8 +2481,16 @@ main {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  padding: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.panel-btn.text-btn {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .panel-btn:hover {
@@ -3260,9 +3315,9 @@ footer {
     top: 0;
   }
 
-  .panel-btn {
-    width: 36px;
-    height: 36px;
+  .panel-btn.text-btn {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.65rem;
   }
 
   .scale-select-prominent {
@@ -4160,5 +4215,415 @@ footer {
 
   .current-chord {
     font-size: 1.5rem;
+  }
+}
+
+/* ============ Instrument Selector Modal ============ */
+
+.instrument-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+.instrument-modal {
+  background: linear-gradient(135deg, rgba(30, 30, 40, 0.97), rgba(20, 20, 30, 0.97));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 2.5rem;
+  max-width: 640px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.35s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.instrument-modal-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.instrument-modal-header h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 0.5rem 0;
+}
+
+.instrument-modal-header p {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.instrument-close-btn {
+  position: absolute;
+  top: -0.5rem;
+  right: -0.5rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.instrument-close-btn:hover {
+  background: rgba(231, 76, 60, 0.2);
+  border-color: rgba(231, 76, 60, 0.5);
+  color: #e74c3c;
+}
+
+.instrument-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.instrument-group-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0 0 0.6rem 0.25rem;
+  font-weight: 600;
+}
+
+.instrument-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.instrument-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1.2rem 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #fff;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.instrument-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.instrument-card.selected {
+  background: rgba(52, 152, 219, 0.15);
+  border-color: #3498db;
+  box-shadow: 0 0 20px rgba(52, 152, 219, 0.2);
+}
+
+.instrument-card-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.instrument-card-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.instrument-card-tuning {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  letter-spacing: 0.05em;
+}
+
+.instrument-card-strings {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* Header instrument switch button */
+
+.instrument-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.instrument-switch-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.instrument-switch-label {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .instrument-modal {
+    padding: 1.5rem;
+    max-width: 95%;
+    border-radius: 16px;
+  }
+
+  .instrument-modal-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .instrument-cards {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+
+  .instrument-card {
+    padding: 1rem 0.75rem;
+  }
+
+  .instrument-switch-label {
+    display: none;
+  }
+
+  .instrument-switch-btn {
+    padding: 0.4rem 0.6rem;
+  }
+}
+
+/* ============ Version Footer & Changelog ============ */
+
+.version-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.version-btn {
+  pointer-events: auto;
+  background: rgba(20, 20, 28, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 0.3rem 1rem;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.7rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.02em;
+}
+
+.version-btn:hover {
+  color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(30, 30, 40, 0.9);
+}
+
+.changelog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+.changelog-modal {
+  background: linear-gradient(135deg, rgba(30, 30, 40, 0.97), rgba(20, 20, 30, 0.97));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  max-width: 560px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.35s ease;
+}
+
+.changelog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 2rem 1rem;
+  flex-shrink: 0;
+}
+
+.changelog-header h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.changelog-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.changelog-close-btn:hover {
+  background: rgba(231, 76, 60, 0.2);
+  border-color: rgba(231, 76, 60, 0.5);
+  color: #e74c3c;
+}
+
+.changelog-body {
+  padding: 0.5rem 2rem 2rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.changelog-release {
+  padding: 1.2rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.changelog-release.latest {
+  background: rgba(52, 152, 219, 0.06);
+  border-color: rgba(52, 152, 219, 0.2);
+}
+
+.changelog-release-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.changelog-version {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #3498db;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.changelog-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(52, 152, 219, 0.2);
+  color: #3498db;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+}
+
+.changelog-date {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
+  margin-left: auto;
+}
+
+.changelog-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 0.6rem 0;
+}
+
+.changelog-list {
+  margin: 0;
+  padding: 0 0 0 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.changelog-list li {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+}
+
+.changelog-release.latest .changelog-list li {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+@media (max-width: 768px) {
+  .changelog-modal {
+    max-width: 95%;
+    border-radius: 16px;
+  }
+
+  .changelog-header {
+    padding: 1.2rem 1.2rem 0.8rem;
+  }
+
+  .changelog-body {
+    padding: 0.5rem 1.2rem 1.5rem;
+  }
+
+  .changelog-release {
+    padding: 1rem;
   }
 }

@@ -5,14 +5,11 @@ import Image from 'next/image'
 import { 
   NOTES,
   SCALES, 
-  STANDARD_TUNING, 
   getNoteAtFret, 
   getScaleNotes, 
   isRootNote
 } from '../lib/scales'
-
-const FRET_COUNT = 15
-const STRING_COUNT = 6
+import { useInstrument } from '../context/InstrumentContext'
 
 type DisplayMode = 'notes' | 'intervals' | 'none'
 
@@ -26,6 +23,11 @@ interface ComparisonViewProps {
 }
 
 export default function ComparisonView({ onClose }: ComparisonViewProps) {
+  const { instrument } = useInstrument()
+  const tuning = instrument.tuning
+  const STRING_COUNT = instrument.stringCount
+  const FRET_COUNT = instrument.defaultFretCount
+
   // Scale A state (Blue)
   const [keyA, setKeyA] = useState<string>('A')
   const [scaleA, setScaleA] = useState<string>('minor-pentatonic')
@@ -372,7 +374,21 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
               <rect x="50" y="20" width="8" height={STRING_COUNT * 30} fill="#f5f5dc" rx="2"/>
 
               {/* Fretboard wood */}
-              <rect x="58" y="20" width={FRET_COUNT * 60} height={STRING_COUNT * 30} fill="#5D4037" rx="4"/>
+              <defs>
+                <pattern id="woodgrain-cmp" patternUnits="userSpaceOnUse" width={FRET_COUNT * 60} height={STRING_COUNT * 30}>
+                  <rect width="100%" height="100%" fill="#3E2723"/>
+                  {Array.from({ length: 14 }, (_, i) => {
+                    const y1 = i * 14 + 3
+                    return (
+                      <line key={`g${i}`} x1="0" y1={y1} x2={FRET_COUNT * 60} y2={y1 + (i % 3 === 0 ? 2 : -1)}
+                        stroke={i % 2 === 0 ? 'rgba(255,220,180,0.06)' : 'rgba(0,0,0,0.12)'}
+                        strokeWidth={i % 3 === 0 ? 1.5 : 0.8}
+                      />
+                    )
+                  })}
+                </pattern>
+              </defs>
+              <rect x="58" y="20" width={FRET_COUNT * 60} height={STRING_COUNT * 30} fill="url(#woodgrain-cmp)" rx="4"/>
 
               {/* Fret markers */}
               {[3, 5, 7, 9, 12, 15].map(fret => {
@@ -405,7 +421,7 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
               ))}
 
               {/* Strings */}
-              {STANDARD_TUNING.slice().reverse().map((_, stringIndex) => {
+              {tuning.slice().reverse().map((_, stringIndex) => {
                 const y = 35 + stringIndex * 30
                 const thickness = 1 + stringIndex * 0.4
                 return (
@@ -422,7 +438,7 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
               })}
 
               {/* String labels */}
-              {STANDARD_TUNING.slice().reverse().map((note, stringIndex) => (
+              {tuning.slice().reverse().map((note, stringIndex) => (
                 <text
                   key={stringIndex}
                   x="25"
@@ -452,7 +468,7 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
               ))}
 
               {/* Scale notes */}
-              {STANDARD_TUNING.slice().reverse().map((openNote, stringIndex) => {
+              {tuning.slice().reverse().map((openNote, stringIndex) => {
                 const y = 35 + stringIndex * 30
                 
                 return Array.from({ length: FRET_COUNT }, (_, i) => {

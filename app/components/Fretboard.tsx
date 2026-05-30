@@ -1,16 +1,16 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { 
   NOTES,
   SCALES, 
-  STANDARD_TUNING, 
   getNoteAtFret, 
   getScaleNotes, 
   isRootNote,
   isBlueNote,
   getIntervalName
 } from '../lib/scales'
+import { useInstrument } from '../context/InstrumentContext'
 import KeySelector from './KeySelector'
 import Metronome from './Metronome'
 import ScaleInfoPanel from './ScaleInfoPanel'
@@ -18,9 +18,6 @@ import ComparisonView from './ComparisonView'
 import ProgressionView from './ProgressionView'
 import Tuner from './Tuner'
 
-const DEFAULT_FRET_COUNT = 15
-const STRING_COUNT = 6
-// Fret width in SVG units; increase for overlay on real guitar (e.g. 72–80)
 const FRET_WIDTH = 72
 
 type DisplayMode = 'notes' | 'intervals' | 'none'
@@ -120,6 +117,10 @@ const DIAGONAL_PATTERNS = {
 }
 
 export default function Fretboard() {
+  const { instrument } = useInstrument()
+  const tuning = instrument.tuning
+  const STRING_COUNT = instrument.stringCount
+
   const [selectedKey, setSelectedKey] = useState<string>('A')
   const [selectedScale, setSelectedScale] = useState<string>('minor-pentatonic')
   const [displayMode, setDisplayMode] = useState<DisplayMode>('notes')
@@ -134,8 +135,20 @@ export default function Fretboard() {
   const [showTuner, setShowTuner] = useState<boolean>(false)
   const [showDownloadMenu, setShowDownloadMenu] = useState<boolean>(false)
   const [startFret, setStartFret] = useState<number>(1)
-  const [endFret, setEndFret] = useState<number>(15)
+  const [endFret, setEndFret] = useState<number>(instrument.defaultFretCount)
   
+  useEffect(() => {
+    if (!instrument.supportsPatterns && patternMode !== 'full') {
+      setPatternMode('full')
+    }
+    setEndFret(instrument.defaultFretCount)
+    setHiddenPositions(new Set())
+    setHighlightedPositions(new Set())
+    setBendPositions(new Map())
+    setAddedOutsideNotes(new Set())
+    setSlideConnections([])
+  }, [instrument.id])
+
   // Hidden notes state (for click-to-hide feature)
   const [hiddenPositions, setHiddenPositions] = useState<Set<string>>(new Set())
   // Highlighted notes state (double-tap to highlight)
@@ -564,7 +577,7 @@ export default function Fretboard() {
     }
 
     // Draw strings
-    STANDARD_TUNING.slice().reverse().forEach((_, stringIndex) => {
+    tuning.slice().reverse().forEach((_, stringIndex) => {
       const sy = 35 + stringIndex * 30
       const thickness = 1 + stringIndex * 0.4
       const stringStartX = startFret === 1 ? 50 : 58
@@ -645,7 +658,7 @@ export default function Fretboard() {
     }
 
     img.src = url
-  }, [selectedKey, currentScale, startFret, endFret, fretCount])
+  }, [selectedKey, currentScale, startFret, endFret, fretCount, tuning, STRING_COUNT])
 
   // Get root note offset for position calculation
   const rootIndex = NOTES.indexOf(selectedKey as typeof NOTES[number])
@@ -662,9 +675,7 @@ export default function Fretboard() {
     if (patternMode === 'diagonal' && stringIndex !== undefined) {
       const pattern = DIAGONAL_PATTERNS[diagonalType]
       const direction = pattern[diagonalDirection]
-      // stringIndex is 0-5 where 0 is high E (string 1) in our reversed display
-      // direction array is 0-5 where 0 is low E (string 6)
-      const actualStringIndex = 5 - stringIndex
+      const actualStringIndex = (STRING_COUNT - 1) - stringIndex
       const [minFret, maxFret] = direction[actualStringIndex]
       const adjustedMin = minFret + positionOffset
       const adjustedMax = maxFret + positionOffset
@@ -724,24 +735,6 @@ export default function Fretboard() {
             >
               ○
             </button>
-            {displayMode !== 'none' && (
-              <div className="label-rotation-buttons" title="Rotate note labels">
-                <button
-                  className={`rotation-btn ${labelRotation === 0 ? 'active' : ''}`}
-                  onClick={() => setLabelRotation(0)}
-                  aria-label="Labels normal"
-                >
-                  0°
-                </button>
-                <button
-                  className={`rotation-btn ${labelRotation === 180 ? 'active' : ''}`}
-                  onClick={() => setLabelRotation(180)}
-                  aria-label="Labels rotated 180°"
-                >
-                  180°
-                </button>
-              </div>
-            )}
           </div>
         </div>
         <div className="header-center">
@@ -750,71 +743,41 @@ export default function Fretboard() {
         </div>
         <div className="panel-buttons">
           <button 
-            className={`panel-btn ${panelMode === 'info' ? 'active' : ''}`}
+            className={`panel-btn text-btn ${panelMode === 'info' ? 'active' : ''}`}
             onClick={() => togglePanel('info')}
-            title="Scale Info"
           >
-            {/* Music notes / scale info icon */}
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6zm-2 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
-            </svg>
+            Info
           </button>
           <button 
-            className={`panel-btn ${panelMode === 'practice' ? 'active' : ''}`}
+            className={`panel-btn text-btn ${panelMode === 'practice' ? 'active' : ''}`}
             onClick={() => togglePanel('practice')}
-            title="Practice Tips"
           >
-            {/* Dumbbell / exercise icon */}
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z"/>
-            </svg>
+            Practice
           </button>
           <button 
-            className="panel-btn compare-btn"
+            className="panel-btn text-btn compare-btn"
             onClick={() => setShowComparison(true)}
-            title="Compare Scales"
           >
-            {/* Justice scale icon */}
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <rect x="11" y="3" width="2" height="18" rx="1"/>
-              <rect x="6" y="20" width="12" height="2" rx="1"/>
-              <rect x="4" y="5" width="16" height="2" rx="1"/>
-              <path d="M4 7l-2 7h8L8 7H4z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-              <path d="M16 7l-2 7h8l-2-7h-4z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-              <path d="M0 14a4 4 0 0 0 8 0H0zM14 14a4 4 0 0 0 8 0h-8z"/>
-            </svg>
+            Compare
           </button>
           <button 
-            className="panel-btn progression-btn"
+            className="panel-btn text-btn progression-btn"
             onClick={() => setShowProgression(true)}
-            title="Progression View (V7 Scales)"
           >
-            {/* Chord progression / roman numerals icon */}
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2L4 7v10l8 5 8-5V7l-8-5zm0 2.5L18 8v8l-6 3.5L6 16V8l6-3.5z"/>
-              <text x="12" y="14" fontSize="7" textAnchor="middle" fontWeight="bold">V</text>
-            </svg>
+            V7
           </button>
           <button 
-            className="panel-btn tuner-btn"
+            className="panel-btn text-btn tuner-btn"
             onClick={() => setShowTuner(true)}
-            title="Tuner"
           >
-            {/* Tuning fork Y icon */}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 2l5 8M17 2l-5 8M12 10v12"/>
-            </svg>
+            Tuner
           </button>
           <div className="download-dropdown-wrapper">
             <button 
-              className="panel-btn download-btn"
+              className="panel-btn text-btn download-btn"
               onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-              title="Download Fretboard as PNG"
             >
-              {/* Download icon */}
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-              </svg>
+              Export
             </button>
             {showDownloadMenu && (
               <>
@@ -846,6 +809,28 @@ export default function Fretboard() {
                       <span className="download-option-desc">Frets, strings & root fret numbers</span>
                     </div>
                   </button>
+                  {displayMode !== 'none' && (
+                    <div className="download-option-divider" />
+                  )}
+                  {displayMode !== 'none' && (
+                    <div className="download-rotation-row">
+                      <span className="download-rotation-label">Label Rotation</span>
+                      <div className="download-rotation-btns">
+                        <button
+                          className={`rotation-btn ${labelRotation === 0 ? 'active' : ''}`}
+                          onClick={() => setLabelRotation(0)}
+                        >
+                          0°
+                        </button>
+                        <button
+                          className={`rotation-btn ${labelRotation === 180 ? 'active' : ''}`}
+                          onClick={() => setLabelRotation(180)}
+                        >
+                          180°
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -862,24 +847,28 @@ export default function Fretboard() {
           >
             Full Scale
           </button>
-          <button
-            className={`pattern-btn ${patternMode === '3nps' ? 'active' : ''}`}
-            onClick={() => { setPatternMode('3nps'); setSelectedPosition(1); }}
-          >
-            3NPS
-          </button>
-          <button
-            className={`pattern-btn ${patternMode === 'caged' ? 'active' : ''}`}
-            onClick={() => { setPatternMode('caged'); setSelectedPosition(1); }}
-          >
-            CAGED
-          </button>
-          <button
-            className={`pattern-btn diagonal ${patternMode === 'diagonal' ? 'active' : ''}`}
-            onClick={() => setPatternMode('diagonal')}
-          >
-            Diagonal
-          </button>
+          {instrument.supportsPatterns && (
+            <>
+              <button
+                className={`pattern-btn ${patternMode === '3nps' ? 'active' : ''}`}
+                onClick={() => { setPatternMode('3nps'); setSelectedPosition(1); }}
+              >
+                3NPS
+              </button>
+              <button
+                className={`pattern-btn ${patternMode === 'caged' ? 'active' : ''}`}
+                onClick={() => { setPatternMode('caged'); setSelectedPosition(1); }}
+              >
+                CAGED
+              </button>
+              <button
+                className={`pattern-btn diagonal ${patternMode === 'diagonal' ? 'active' : ''}`}
+                onClick={() => setPatternMode('diagonal')}
+              >
+                Diagonal
+              </button>
+            </>
+          )}
         </div>
         
         {patternMode !== 'full' && patternMode !== 'diagonal' && (
@@ -980,7 +969,7 @@ export default function Fretboard() {
             }}
             onBlur={(e) => {
               const v = e.target.value
-              if (v === '' || isNaN(parseInt(v, 10))) setEndFret(startFret + DEFAULT_FRET_COUNT - 1)
+              if (v === '' || isNaN(parseInt(v, 10))) setEndFret(startFret + instrument.defaultFretCount - 1)
             }}
             className="start-fret-input"
           />
@@ -1043,12 +1032,26 @@ export default function Fretboard() {
           )}
 
           {/* Fretboard wood */}
+          <defs>
+            <pattern id="woodgrain" patternUnits="userSpaceOnUse" width={fretCount * FRET_WIDTH} height={STRING_COUNT * 30}>
+              <rect width="100%" height="100%" fill="#3E2723"/>
+              {Array.from({ length: 14 }, (_, i) => {
+                const y1 = i * 14 + 3
+                return (
+                  <line key={`g${i}`} x1="0" y1={y1} x2={fretCount * FRET_WIDTH} y2={y1 + (i % 3 === 0 ? 2 : -1)}
+                    stroke={i % 2 === 0 ? 'rgba(255,220,180,0.06)' : 'rgba(0,0,0,0.12)'}
+                    strokeWidth={i % 3 === 0 ? 1.5 : 0.8}
+                  />
+                )
+              })}
+            </pattern>
+          </defs>
           <rect 
             x="58" 
             y="20" 
             width={fretCount * FRET_WIDTH} 
             height={STRING_COUNT * 30} 
-            fill="#5D4037"
+            fill="url(#woodgrain)"
             rx="4"
           />
 
@@ -1085,7 +1088,7 @@ export default function Fretboard() {
           ))}
 
           {/* Strings */}
-          {STANDARD_TUNING.slice().reverse().map((_, stringIndex) => {
+          {tuning.slice().reverse().map((_, stringIndex) => {
             const y = 35 + stringIndex * 30
             const thickness = 1 + stringIndex * 0.4
             const stringStartX = startFret === 1 ? 50 : 58
@@ -1103,7 +1106,7 @@ export default function Fretboard() {
           })}
 
           {/* String labels (open notes) */}
-          {STANDARD_TUNING.slice().reverse().map((note, stringIndex) => {
+          {tuning.slice().reverse().map((note, stringIndex) => {
             const y = 40 + stringIndex * 30
             return (
               <text
@@ -1175,7 +1178,7 @@ export default function Fretboard() {
           })()}
 
           {/* Scale notes and outside notes on fretboard */}
-          {STANDARD_TUNING.slice().reverse().map((openNote, stringIndex) => {
+          {tuning.slice().reverse().map((openNote, stringIndex) => {
             const y = 35 + stringIndex * 30
             
             return Array.from({ length: fretCount }, (_, i) => {

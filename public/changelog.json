@@ -1,0 +1,49 @@
+[
+  {
+    "version": "1.2.0",
+    "date": "2026-05-30",
+    "title": "Multi-Instrument Support",
+    "changes": [
+      "Added instrument selector popup on first visit",
+      "Added Bass (4, 5, 6 string) fretboards",
+      "Added Ukulele fretboard",
+      "Instrument choice saved in cookies",
+      "Dynamic fretboard adapts strings, tuning, and layout per instrument",
+      "Tuner now matches selected instrument",
+      "Replaced toolbar icons with readable text labels",
+      "Added version info footer with changelog",
+      "Added key selector to backing track generator",
+      "Darkened fretboard with subtle wood grain texture"
+    ]
+  },
+  {
+    "version": "1.1.0",
+    "date": "2026-05-29",
+    "title": "Bends, Slides & Annotations",
+    "changes": [
+      "Bend markers with half, full, and 1.5 step indicators",
+      "Drag-to-connect slide lines between notes",
+      "Click empty frets to add outside notes",
+      "Double-click to highlight notes",
+      "Click to hide scale notes for practice",
+      "Download fretboard as PNG (dots only or with fretboard)",
+      "Progression view for V7 dominant scales",
+      "Scale comparison side-by-side view"
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "date": "2026-05-28",
+    "title": "Initial Release",
+    "changes": [
+      "Interactive SVG fretboard with 22 scales",
+      "3NPS, CAGED, and Diagonal pattern modes",
+      "Note and interval display modes with rotation",
+      "Built-in metronome with tap tempo",
+      "Guitar tuner with pitch detection",
+      "Backing track generator",
+      "Adjustable fret range (1-24)",
+      "Scale info panel and practice tips"
+    ]
+  }
+]
