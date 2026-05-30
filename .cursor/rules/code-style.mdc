@@ -1,0 +1,28 @@
+---
+description: Coding patterns and style conventions for FretWiki
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Code Style
+
+## Components
+- All components are client components (`'use client'`) — needed for interactivity and Web Audio
+- Use `useInstrument()` hook for instrument-aware components, never hardcode tunings or string counts
+- Modals use overlay + modal pattern with ESC key handler and backdrop click to close
+
+## Styling
+- All styles go in `app/globals.css` — do not create separate CSS files
+- Use CSS variables and rgba for transparency
+- Mobile breakpoint is 768px
+- Dark theme throughout (dark backgrounds, white/light text)
+
+## State Management
+- React Context for global state (instrument selection)
+- Cookies for persistence (no database yet — Supabase integration planned)
+- Local component state for UI toggles
+
+## Fretboard Rendering
+- Fretboards are pure inline SVG, no canvas or external libs
+- Each fretboard variant (main, comparison, progression) has its own SVG wood grain pattern with a unique ID to avoid conflicts
+- Note positions calculated from tuning array and scale formulas in `app/lib/scales.ts`

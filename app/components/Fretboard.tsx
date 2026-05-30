@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { 
   NOTES,
   SCALES, 
@@ -14,9 +15,7 @@ import { useInstrument } from '../context/InstrumentContext'
 import KeySelector from './KeySelector'
 import Metronome from './Metronome'
 import ScaleInfoPanel from './ScaleInfoPanel'
-import ComparisonView from './ComparisonView'
 import ProgressionView from './ProgressionView'
-import Tuner from './Tuner'
 
 const FRET_WIDTH = 72
 
@@ -118,6 +117,8 @@ const DIAGONAL_PATTERNS = {
 
 export default function Fretboard() {
   const { instrument } = useInstrument()
+  const pathname = usePathname()
+  const isNixx = pathname === '/nixx'
   const tuning = instrument.tuning
   const STRING_COUNT = instrument.stringCount
 
@@ -130,9 +131,7 @@ export default function Fretboard() {
   const [selectedPosition, setSelectedPosition] = useState<number>(1)
   const [diagonalType, setDiagonalType] = useState<DiagonalType>('pentatonic')
   const [diagonalDirection, setDiagonalDirection] = useState<'ascending' | 'descending'>('ascending')
-  const [showComparison, setShowComparison] = useState<boolean>(false)
   const [showProgression, setShowProgression] = useState<boolean>(false)
-  const [showTuner, setShowTuner] = useState<boolean>(false)
   const [showDownloadMenu, setShowDownloadMenu] = useState<boolean>(false)
   const [startFret, setStartFret] = useState<number>(1)
   const [endFret, setEndFret] = useState<number>(instrument.defaultFretCount)
@@ -754,24 +753,14 @@ export default function Fretboard() {
           >
             Practice
           </button>
-          <button 
-            className="panel-btn text-btn compare-btn"
-            onClick={() => setShowComparison(true)}
-          >
-            Compare
-          </button>
-          <button 
-            className="panel-btn text-btn progression-btn"
-            onClick={() => setShowProgression(true)}
-          >
-            V7
-          </button>
-          <button 
-            className="panel-btn text-btn tuner-btn"
-            onClick={() => setShowTuner(true)}
-          >
-            Tuner
-          </button>
+          {isNixx && (
+            <button 
+              className="panel-btn text-btn progression-btn"
+              onClick={() => setShowProgression(true)}
+            >
+              Play Outside (v7)
+            </button>
+          )}
           <div className="download-dropdown-wrapper">
             <button 
               className="panel-btn text-btn download-btn"
@@ -927,7 +916,7 @@ export default function Fretboard() {
         )}
 
         <div className="start-fret-selector">
-          <label htmlFor="start-fret">Frets:</label>
+          <label htmlFor="start-fret">Crop Frets:</label>
           <input
             id="start-fret"
             type="number"
@@ -1544,20 +1533,11 @@ export default function Fretboard() {
         />
       </div>
 
-      {/* Comparison View Modal */}
-      {showComparison && (
-        <ComparisonView onClose={() => setShowComparison(false)} />
-      )}
-
       {/* Progression View Modal */}
       {showProgression && (
         <ProgressionView onClose={() => setShowProgression(false)} />
       )}
 
-      {/* Tuner Modal */}
-      {showTuner && (
-        <Tuner onClose={() => setShowTuner(false)} />
-      )}
     </div>
   )
 }

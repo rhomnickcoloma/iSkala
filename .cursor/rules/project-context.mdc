@@ -1,0 +1,55 @@
+---
+description: FretWiki project architecture, conventions, and key decisions
+alwaysApply: true
+---
+
+# FretWiki — Project Context
+
+## Overview
+FretWiki is a multi-instrument interactive scale reference tool built with **Next.js 15 (App Router)** and **React 19**. No UI frameworks — all styling is custom CSS in `app/globals.css`.
+
+## Tech Stack
+- Next.js 15 App Router, React 19, TypeScript
+- All CSS in `app/globals.css` (no Tailwind, no CSS modules)
+- SVG-based fretboard rendering (inline SVG, not a library)
+- Web Audio API for metronome, backing tracks, and tuner
+- Cookie-based persistence for instrument selection
+
+## Architecture
+
+### Key Files
+- `app/page.tsx` — Main entry, wraps everything in `InstrumentProvider`
+- `app/nixx/page.tsx` — Hidden route, mirrors main page (enables V7 button)
+- `app/context/InstrumentContext.tsx` — Global instrument state (React Context + cookies)
+- `app/lib/instruments.ts` — Instrument configs (guitar, bass 4/5/6, ukulele)
+- `app/lib/scales.ts` — Scale definitions and music theory utilities
+- `app/globals.css` — All styles (2500+ lines, single file)
+- `public/changelog.json` — Version history, loaded at runtime by VersionInfo
+
+### Components
+- `Fretboard.tsx` — Main interactive fretboard (largest component, ~1500 lines)
+- `FretboardSVG.tsx` — Simplified non-interactive fretboard for modals
+- `ComparisonView.tsx` — Side-by-side scale comparison modal
+- `ProgressionView.tsx` — V7 dominant scale progressions (hidden feature)
+- `BackingTrackGenerator.tsx` — Drum/chord backing track with key selection
+- `Tuner.tsx` — Pitch detection tuner
+- `Metronome.tsx` — Tap-tempo metronome
+- `InstrumentSelector.tsx` — Instrument picker popup with Unsplash images
+- `Header.tsx` — Brand logo, title, instrument switch button
+- `VersionInfo.tsx` — Footer version badge + changelog modal
+- `TunerButton.tsx` / `CompareButton.tsx` — Floating action buttons
+
+### Instrument System
+All components derive tuning, string count, and fret count from `useInstrument()` context. Guitar-specific features (3NPS, CAGED, Diagonal patterns) are gated by `instrument.supportsPatterns`.
+
+## Hidden Features
+- **`/nixx` route**: Shows the V7 (dominant fifth progression) button in the toolbar. This feature is intentionally hidden from the main route and excluded from the changelog.
+- The V7 button visibility is controlled by `usePathname() === '/nixx'` inside `Fretboard.tsx`.
+
+## Conventions
+- Toolbar buttons use text labels, not icons
+- Floating buttons (Compare, Tuner, Backing Track) are in a flex container at bottom-right
+- Fretboard has a dark wood grain texture (SVG pattern)
+- Instrument selector uses Unsplash background images in tall column cards
+- Max content width is 1500px, background is full-width
+- Brand: "FretWiki" by "NIXX Music", logo at `/nixx-logo.PNG`
