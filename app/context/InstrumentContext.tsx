@@ -34,9 +34,10 @@ function setCookie(name: string, value: string, days: number = 365) {
 interface ProviderProps {
   children: ReactNode
   initialInstrument?: string
+  skipRouting?: boolean
 }
 
-export function InstrumentProvider({ children, initialInstrument }: ProviderProps) {
+export function InstrumentProvider({ children, initialInstrument, skipRouting }: ProviderProps) {
   const router = useRouter()
   const [instrumentId, setInstrumentIdState] = useState<string>(
     initialInstrument && INSTRUMENTS[initialInstrument] ? initialInstrument : DEFAULT_INSTRUMENT_ID
@@ -55,8 +56,10 @@ export function InstrumentProvider({ children, initialInstrument }: ProviderProp
     const saved = getCookie('fretwiki_instrument')
     if (saved && INSTRUMENTS[saved]) {
       setInstrumentIdState(saved)
-      router.replace(`/${saved}`)
-    } else {
+      if (!skipRouting) {
+        router.replace(`/${saved}`)
+      }
+    } else if (!skipRouting) {
       setShowSelector(true)
     }
     setInitialized(true)
@@ -67,7 +70,9 @@ export function InstrumentProvider({ children, initialInstrument }: ProviderProp
     setInstrumentIdState(id)
     setCookie('fretwiki_instrument', id)
     setShowSelector(false)
-    router.push(`/${id}`)
+    if (!skipRouting) {
+      router.push(`/${id}`)
+    }
   }
 
   const instrument = getInstrument(instrumentId)

@@ -8,8 +8,8 @@ export default function CompareScalesPage() {
   const router = useRouter()
 
   return (
-    <InstrumentProvider>
-      <ComparisonView onClose={() => router.push('/')} />
+    <InstrumentProvider skipRouting>
+      <ComparisonView onClose={() => router.back()} />
     </InstrumentProvider>
   )
 }

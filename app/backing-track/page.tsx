@@ -6,5 +6,5 @@ import BackingTrackPage from '../components/BackingTrackPage'
 export default function BackingTrackRoute() {
   const router = useRouter()
 
-  return <BackingTrackPage onClose={() => router.push('/')} />
+  return <BackingTrackPage onClose={() => router.back()} />
 }

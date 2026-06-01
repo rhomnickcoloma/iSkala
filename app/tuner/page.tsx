@@ -8,8 +8,8 @@ export default function TunerPage() {
   const router = useRouter()
 
   return (
-    <InstrumentProvider>
-      <Tuner onClose={() => router.push('/')} />
+    <InstrumentProvider skipRouting>
+      <Tuner onClose={() => router.back()} />
     </InstrumentProvider>
   )
 }
