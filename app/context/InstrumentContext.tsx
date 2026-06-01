@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import { InstrumentConfig, INSTRUMENTS, DEFAULT_INSTRUMENT_ID, getInstrument } from '../lib/instruments'
 
 interface InstrumentContextType {
@@ -30,25 +31,43 @@ function setCookie(name: string, value: string, days: number = 365) {
   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`
 }
 
-export function InstrumentProvider({ children }: { children: ReactNode }) {
-  const [instrumentId, setInstrumentIdState] = useState<string>(DEFAULT_INSTRUMENT_ID)
+interface ProviderProps {
+  children: ReactNode
+  initialInstrument?: string
+}
+
+export function InstrumentProvider({ children, initialInstrument }: ProviderProps) {
+  const router = useRouter()
+  const [instrumentId, setInstrumentIdState] = useState<string>(
+    initialInstrument && INSTRUMENTS[initialInstrument] ? initialInstrument : DEFAULT_INSTRUMENT_ID
+  )
   const [showSelector, setShowSelector] = useState(false)
   const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
+    if (initialInstrument && INSTRUMENTS[initialInstrument]) {
+      setInstrumentIdState(initialInstrument)
+      setCookie('fretwiki_instrument', initialInstrument)
+      setInitialized(true)
+      return
+    }
+
     const saved = getCookie('fretwiki_instrument')
     if (saved && INSTRUMENTS[saved]) {
       setInstrumentIdState(saved)
+      router.replace(`/${saved}`)
     } else {
       setShowSelector(true)
     }
     setInitialized(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const setInstrumentId = (id: string) => {
     setInstrumentIdState(id)
     setCookie('fretwiki_instrument', id)
     setShowSelector(false)
+    router.push(`/${id}`)
   }
 
   const instrument = getInstrument(instrumentId)
