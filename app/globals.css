@@ -3305,6 +3305,10 @@ footer {
     width: 100%;
     max-height: 200px;
   }
+
+  .header-center {
+    display: none;
+  }
 }
 
 /* Responsive - Mobile */
