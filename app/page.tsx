@@ -1,9 +1,9 @@
 import { InstrumentProvider } from './context/InstrumentContext'
 import Fretboard from './components/Fretboard'
 import Header from './components/Header'
-import BackingTrackGenerator from './components/BackingTrackGenerator'
 import CompareButton from './components/CompareButton'
 import TunerButton from './components/TunerButton'
+import BackingTrackButton from './components/BackingTrackButton'
 import InstrumentSelector from './components/InstrumentSelector'
 import VersionInfo from './components/VersionInfo'
 
@@ -32,7 +32,7 @@ export default function Home() {
       <div className="floating-buttons">
         <CompareButton />
         <TunerButton />
-        <BackingTrackGenerator />
+        <BackingTrackButton />
       </div>
 
       {/* Instrument Selection Popup */}
