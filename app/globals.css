@@ -4489,34 +4489,57 @@ footer {
   position: fixed;
   bottom: 0;
   left: 0;
-  width: 100%;
   display: flex;
-  justify-content: center;
-  padding: 0.5rem;
+  padding: 0.75rem;
   pointer-events: none;
   z-index: 50;
 }
 
-.version-btn {
+.version-links {
   pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   background: rgba(20, 20, 28, 0.7);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   padding: 0.3rem 1rem;
+}
+
+.version-link {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.7rem;
+  text-decoration: none;
+  transition: color 0.2s;
+  letter-spacing: 0.02em;
+}
+
+.version-link:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.version-sep {
+  color: rgba(255, 255, 255, 0.15);
+  font-size: 0.7rem;
+}
+
+.version-btn {
+  pointer-events: auto;
+  background: none;
+  border: none;
+  padding: 0;
   color: rgba(255, 255, 255, 0.35);
   font-size: 0.7rem;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.2s;
   letter-spacing: 0.02em;
 }
 
 .version-btn:hover {
   color: rgba(255, 255, 255, 0.7);
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(30, 30, 40, 0.9);
 }
 
 .changelog-overlay {
@@ -4676,5 +4699,223 @@ footer {
 
   .changelog-release {
     padding: 1rem;
+  }
+}
+
+/* ============ Static Pages (About, Terms) ============ */
+
+.static-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+  min-height: 100vh;
+}
+
+.static-nav {
+  margin-bottom: 2rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #5dade2;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(52, 152, 219, 0.3);
+  background: rgba(52, 152, 219, 0.1);
+  transition: all 0.2s;
+}
+
+.back-link:hover {
+  background: rgba(52, 152, 219, 0.2);
+  border-color: rgba(52, 152, 219, 0.5);
+}
+
+.back-link svg {
+  width: 18px;
+  height: 18px;
+}
+
+.static-content {
+  background: rgba(17, 17, 17, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.static-hero {
+  text-align: center;
+  padding: 2.5rem 2rem 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.static-logo {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 1rem;
+}
+
+.static-hero h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, #3498db, #5dade2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.35rem;
+}
+
+.static-tagline {
+  color: #888;
+  font-size: 0.95rem;
+}
+
+.static-section {
+  padding: 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.static-section:last-of-type {
+  border-bottom: none;
+}
+
+.static-section h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #5dade2;
+  margin-bottom: 1rem;
+}
+
+.static-section p {
+  color: #bbb;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  margin-bottom: 0.75rem;
+}
+
+.static-section p:last-child {
+  margin-bottom: 0;
+}
+
+.static-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+}
+
+.static-section ul li {
+  color: #bbb;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  padding: 0.3rem 0 0.3rem 1.5rem;
+  position: relative;
+}
+
+.static-section ul li::before {
+  content: '•';
+  color: #e74c3c;
+  position: absolute;
+  left: 0.4rem;
+  font-weight: bold;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.feature-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.feature-card:hover {
+  border-color: rgba(52, 152, 219, 0.3);
+  transform: translateY(-2px);
+}
+
+.feature-icon {
+  font-size: 1.8rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.feature-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 0.4rem;
+}
+
+.feature-card p {
+  color: #999;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.static-footer {
+  padding: 1.5rem 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.static-footer p {
+  color: #555;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.static-footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.static-footer-links a {
+  color: #5dade2;
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: color 0.2s;
+}
+
+.static-footer-links a:hover {
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .static-page {
+    padding: 1rem;
+  }
+
+  .static-hero h1 {
+    font-size: 1.5rem;
+  }
+
+  .static-section {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .static-footer {
+    padding: 1.25rem 1rem;
   }
 }
