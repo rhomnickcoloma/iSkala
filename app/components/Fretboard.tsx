@@ -133,6 +133,7 @@ export default function Fretboard() {
   const [diagonalDirection, setDiagonalDirection] = useState<'ascending' | 'descending'>('ascending')
   const [showProgression, setShowProgression] = useState<boolean>(false)
   const [showDownloadMenu, setShowDownloadMenu] = useState<boolean>(false)
+  const [drawerOpen, setDrawerOpen] = useState<boolean>(false)
   const [startFret, setStartFret] = useState<number>(1)
   const [endFret, setEndFret] = useState<number>(instrument.defaultFretCount)
   
@@ -966,6 +967,7 @@ export default function Fretboard() {
       </div>
 
       <div className="fretboard-main">
+        <div className="fretboard-column">
         {/* Fretboard SVG */}
         <div className="fretboard-wrapper">
         <svg 
@@ -1430,8 +1432,10 @@ export default function Fretboard() {
             )
           })}
         </svg>
+        </div>
 
-          {/* Legend */}
+        <div className="tools-section">
+          {/* Tools - always visible */}
           <div className="legend">
             <div className="legend-item">
               <span className="legend-dot root"></span>
@@ -1447,7 +1451,7 @@ export default function Fretboard() {
               <span className="legend-dot scale"></span>
               <span>Scale Notes</span>
             </div>
-            <div className="legend-item">
+            <div className="legend-item legend-item-desktop">
               <span className="legend-dot outside"></span>
               <span>Click empty = outside note</span>
             </div>
@@ -1498,7 +1502,6 @@ export default function Fretboard() {
             )}
           </div>
 
-          {/* Notes in Scale */}
           <div className="scale-notes-inline">
             <span className="notes-label">Notes:</span>
             <div className="notes-row-inline">
@@ -1515,22 +1518,46 @@ export default function Fretboard() {
             </div>
           </div>
           
-          {/* Key Selection */}
           <KeySelector 
             selectedKey={selectedKey}
             onKeyChange={setSelectedKey}
           />
 
-          {/* Metronome */}
           <Metronome />
         </div>
+        </div>
 
-        {/* Side Panel */}
-        <ScaleInfoPanel 
-          panelMode={panelMode}
-          scaleNotes={scaleNotes}
-          currentScale={currentScale}
-        />
+        {/* Side Panel - desktop only */}
+        <div className="side-panel-desktop">
+          <ScaleInfoPanel 
+            panelMode={panelMode}
+            scaleNotes={scaleNotes}
+            currentScale={currentScale}
+          />
+        </div>
+      </div>
+
+      {/* Mobile Bottom Drawer - Info & Practice */}
+      {drawerOpen && <div className="drawer-backdrop" onClick={() => setDrawerOpen(false)} />}
+      <div className={`mobile-drawer ${drawerOpen ? 'open' : ''}`}>
+        <button className="drawer-handle" onClick={() => setDrawerOpen(!drawerOpen)}>
+          <span className="drawer-handle-bar" />
+          <span className="drawer-handle-label">{drawerOpen ? 'Close' : 'Info & Practice'}</span>
+        </button>
+        {drawerOpen && (
+          <div className="drawer-content">
+            <ScaleInfoPanel 
+              panelMode="info"
+              scaleNotes={scaleNotes}
+              currentScale={currentScale}
+            />
+            <ScaleInfoPanel 
+              panelMode="practice"
+              scaleNotes={scaleNotes}
+              currentScale={currentScale}
+            />
+          </div>
+        )}
       </div>
 
       {/* Progression View Modal */}

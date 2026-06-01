@@ -275,6 +275,8 @@ main {
   flex: 1;
   display: flex;
   flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
 .scale-header {
@@ -2570,16 +2572,21 @@ main {
 .fretboard-main {
   display: flex;
   gap: 1rem;
-  flex: 1;
   min-height: 0;
 }
 
-.fretboard-wrapper {
+.fretboard-column {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.fretboard-container.with-panel .fretboard-wrapper {
+.tools-section {
+  flex-shrink: 0;
+}
+
+.fretboard-container.with-panel .fretboard-column {
   flex: 1;
 }
 
@@ -4917,5 +4924,291 @@ footer {
 
   .static-footer {
     padding: 1.25rem 1rem;
+  }
+}
+
+/* ============ Mobile Bottom Drawer ============ */
+
+.mobile-drawer {
+  display: none;
+}
+
+.drawer-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Hide Info/Practice buttons & side panel on mobile (they're in the drawer) */
+  .panel-buttons {
+    display: none !important;
+  }
+
+  .side-panel-desktop {
+    display: none !important;
+  }
+
+  .legend-item-desktop {
+    display: none;
+  }
+
+  /* Show the mobile drawer */
+  .mobile-drawer {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 900;
+    background: rgba(15, 15, 20, 0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 18px 18px 0 0;
+    transform: translateY(calc(100% - 48px));
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 75vh;
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .mobile-drawer.open {
+    transform: translateY(0);
+  }
+
+  .drawer-backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 899;
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .drawer-handle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    width: 100%;
+    padding: 0.65rem 1rem 0.5rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .drawer-handle-bar {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.25);
+    transition: background 0.2s;
+  }
+
+  .drawer-handle:active .drawer-handle-bar {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  .drawer-handle-label {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+
+  .drawer-content {
+    padding: 0 1rem 1.5rem;
+    overflow-y: auto;
+    max-height: calc(75vh - 48px);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .drawer-content .key-row {
+    margin: 0.5rem 0;
+    padding: 0.6rem;
+  }
+
+  .drawer-content .key-btn {
+    width: 44px;
+    height: 40px;
+    font-size: 0.85rem;
+  }
+
+  .drawer-content .metronome {
+    margin-top: 0.5rem;
+  }
+
+  .drawer-content .legend {
+    margin: 0.5rem 0 0;
+    gap: 0.5rem;
+  }
+
+  .drawer-content .scale-notes-inline {
+    justify-content: center;
+    padding: 0.25rem 0;
+  }
+
+  /* Compact header on mobile */
+  header {
+    margin-bottom: 0.5rem;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .header-content {
+    flex-direction: row !important;
+    gap: 0.6rem !important;
+    align-items: center;
+  }
+
+  .brand-logo {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .brand-name {
+    font-size: 1rem !important;
+  }
+
+  .brand-sub {
+    font-size: 0.55rem !important;
+  }
+
+  .header-title {
+    display: none;
+  }
+
+  .instrument-switch-btn {
+    margin-left: auto;
+  }
+
+  /* Compact fretboard container */
+  .fretboard-container {
+    padding: 0.5rem !important;
+    border-radius: 10px;
+  }
+
+  /* Compact scale header */
+  .scale-header {
+    flex-wrap: nowrap !important;
+    gap: 0.4rem !important;
+    padding-top: 0 !important;
+    margin-bottom: 0.35rem;
+    align-items: center;
+  }
+
+  .header-left {
+    order: 0 !important;
+    width: auto !important;
+    flex-wrap: nowrap !important;
+    gap: 0.35rem !important;
+  }
+
+  .header-center {
+    flex: 1 !important;
+    width: auto !important;
+    min-width: 0;
+  }
+
+  .header-center h2 {
+    font-size: 0.95rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .scale-header .scale-description {
+    display: none;
+  }
+
+  .panel-buttons {
+    position: static !important;
+    gap: 0.3rem !important;
+  }
+
+  .panel-btn {
+    width: auto !important;
+    height: auto !important;
+    padding: 0.3rem 0.5rem !important;
+    border-radius: 6px !important;
+    font-size: 0.65rem !important;
+  }
+
+  .scale-select-prominent {
+    min-width: 120px !important;
+    padding: 0.45rem 1.8rem 0.45rem 0.6rem !important;
+    font-size: 0.8rem !important;
+    border-radius: 8px !important;
+  }
+
+  .display-buttons {
+    gap: 0.15rem;
+  }
+
+  .display-btn {
+    padding: 0.35rem 0.45rem !important;
+    font-size: 0.6rem !important;
+    min-height: auto !important;
+  }
+
+  /* Compact pattern selector */
+  .pattern-selector {
+    padding: 0.4rem 0.5rem;
+    margin-bottom: 0.35rem;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .pattern-btn {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.7rem;
+  }
+
+  .position-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.7rem;
+  }
+
+  .start-fret-selector {
+    padding-left: 0.5rem;
+  }
+
+  .start-fret-selector label {
+    font-size: 0.7rem !important;
+  }
+
+  .start-fret-input {
+    width: 2.5rem !important;
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.3rem !important;
+  }
+
+  /* Fretboard takes full width with minimal padding */
+  .fretboard-wrapper {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .fretboard-svg {
+    min-width: 600px !important;
+    border-radius: 8px;
+  }
+
+  /* Add padding at bottom for drawer handle */
+  .container {
+    padding-bottom: 56px !important;
+  }
+
+  /* Side panel on mobile */
+  .side-panel {
+    max-height: 160px;
   }
 }
