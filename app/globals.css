@@ -2941,6 +2941,13 @@ main {
   padding: 0.5rem;
 }
 
+.select-input optgroup {
+  background: #111;
+  color: #5dade2;
+  font-weight: 600;
+  font-style: normal;
+}
+
 /* Button Group for Display Mode */
 .button-group {
   display: flex;

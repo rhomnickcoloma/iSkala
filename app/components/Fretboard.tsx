@@ -13,6 +13,7 @@ import {
   THREE_NPS_POSITION_COUNT,
   get3NPSDisplayKeySet,
   get3NPSFretRange,
+  getScaleSelectGroups,
 } from '../lib/scales'
 import { useInstrument } from '../context/InstrumentContext'
 import KeySelector from './KeySelector'
@@ -720,8 +721,12 @@ export default function Fretboard() {
             onChange={(e) => setSelectedScale(e.target.value)}
             className="select-input scale-select-prominent"
           >
-            {Object.entries(SCALES).map(([key, scale]) => (
-              <option key={key} value={key}>{scale.name}</option>
+            {getScaleSelectGroups().map(group => (
+              <optgroup key={group.label} label={group.label}>
+                {group.keys.map(key => (
+                  <option key={key} value={key}>{SCALES[key].name}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
           <div className="display-buttons">

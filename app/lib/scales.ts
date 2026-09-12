@@ -151,6 +151,18 @@ export const SCALES: Record<string, { name: string; intervals: number[]; descrip
       'Use for film score-style compositions'
     ]
   },
+  'locrian': {
+    name: 'Locrian',
+    intervals: [0, 1, 3, 5, 6, 8, 10],
+    description: 'Diminished quality with flat 2nd and flat 5th, unstable and tense',
+    practice: [
+      'Emphasize the ♭5 for the diminished sound',
+      'Use over m7♭5 / half-diminished chords',
+      'Practice resolving Locrian phrases into a stronger mode',
+      'Compare with Phrygian to hear the lowered 5th',
+      'Try metal riffs that lean on the tritone'
+    ]
+  },
   'diminished-half-whole': {
     name: 'Diminished (Half-Whole)',
     intervals: [0, 1, 3, 4, 6, 7, 9, 10],
@@ -283,6 +295,25 @@ export const SCALES: Record<string, { name: string; intervals: number[]; descrip
       'Combine with natural minor and Dorian for lines'
     ]
   },
+}
+
+/** The 7 church modes of the major scale, in Ionian → Locrian order. */
+export const CHURCH_MODE_KEYS = [
+  'major',
+  'dorian',
+  'phrygian',
+  'lydian',
+  'mixolydian',
+  'natural-minor',
+  'locrian',
+] as const
+
+export function getScaleSelectGroups(): { label: string; keys: string[] }[] {
+  const modeSet = new Set<string>(CHURCH_MODE_KEYS)
+  return [
+    { label: 'Modes', keys: CHURCH_MODE_KEYS.filter(key => key in SCALES) },
+    { label: 'Other Scales', keys: Object.keys(SCALES).filter(key => !modeSet.has(key)) },
+  ]
 }
 
 // Standard guitar tuning (low to high): E A D G B E
