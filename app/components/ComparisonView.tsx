@@ -7,7 +7,8 @@ import {
   SCALES, 
   getNoteAtFret, 
   getScaleNotes, 
-  isRootNote
+  isRootNote,
+  getScaleSelectGroups,
 } from '../lib/scales'
 import { useInstrument } from '../context/InstrumentContext'
 
@@ -295,8 +296,12 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
                 onChange={(e) => setScaleA(e.target.value)}
                 className="select-input compact"
               >
-                {Object.entries(SCALES).map(([key, scale]) => (
-                  <option key={key} value={key}>{scale.name}</option>
+                {getScaleSelectGroups().map(group => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.keys.map(key => (
+                      <option key={key} value={key}>{SCALES[key].name}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>
@@ -331,8 +336,12 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
                 onChange={(e) => setScaleB(e.target.value)}
                 className="select-input compact"
               >
-                {Object.entries(SCALES).map(([key, scale]) => (
-                  <option key={key} value={key}>{scale.name}</option>
+                {getScaleSelectGroups().map(group => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.keys.map(key => (
+                      <option key={key} value={key}>{SCALES[key].name}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>

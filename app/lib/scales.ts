@@ -151,6 +151,18 @@ export const SCALES: Record<string, { name: string; intervals: number[]; descrip
       'Use for film score-style compositions'
     ]
   },
+  'locrian': {
+    name: 'Locrian',
+    intervals: [0, 1, 3, 5, 6, 8, 10],
+    description: 'Diminished quality with flat 2nd and flat 5th, unstable and tense',
+    practice: [
+      'Emphasize the ♭5 for the diminished sound',
+      'Use over m7♭5 / half-diminished chords',
+      'Practice resolving Locrian phrases into a stronger mode',
+      'Compare with Phrygian to hear the lowered 5th',
+      'Try metal riffs that lean on the tritone'
+    ]
+  },
   'diminished-half-whole': {
     name: 'Diminished (Half-Whole)',
     intervals: [0, 1, 3, 4, 6, 7, 9, 10],
@@ -285,6 +297,25 @@ export const SCALES: Record<string, { name: string; intervals: number[]; descrip
   },
 }
 
+/** The 7 church modes of the major scale, in Ionian → Locrian order. */
+export const CHURCH_MODE_KEYS = [
+  'major',
+  'dorian',
+  'phrygian',
+  'lydian',
+  'mixolydian',
+  'natural-minor',
+  'locrian',
+] as const
+
+export function getScaleSelectGroups(): { label: string; keys: string[] }[] {
+  const modeSet = new Set<string>(CHURCH_MODE_KEYS)
+  return [
+    { label: 'Modes', keys: CHURCH_MODE_KEYS.filter(key => key in SCALES) },
+    { label: 'Other Scales', keys: Object.keys(SCALES).filter(key => !modeSet.has(key)) },
+  ]
+}
+
 // Standard guitar tuning (low to high): E A D G B E
 export const STANDARD_TUNING = ['E', 'A', 'D', 'G', 'B', 'E']
 
@@ -302,6 +333,129 @@ export function getScaleNotes(rootNote: string, scaleType: string): string[] {
   
   const rootIndex = NOTES.indexOf(rootNote as typeof NOTES[number])
   return scale.intervals.map(interval => NOTES[(rootIndex + interval) % 12])
+}
+
+export const THREE_NPS_POSITION_COUNT = 7
+
+export interface ThreeNPSNote {
+  /** Index into the tuning array (0 = lowest / thickest string) */
+  tuningIndex: number
+  fret: number
+}
+
+/**
+ * Absolute pitch of each open string, in semitones from C, accumulating
+ * upward so higher strings stay above lower ones (handles the G–B major 3rd).
+ */
+function getOpenStringAbsPitches(tuning: string[]): number[] {
+  const first = NOTES.indexOf(tuning[0] as typeof NOTES[number])
+  const abs = [first]
+  for (let i = 1; i < tuning.length; i++) {
+    const prev = NOTES.indexOf(tuning[i - 1] as typeof NOTES[number])
+    const curr = NOTES.indexOf(tuning[i] as typeof NOTES[number])
+    abs.push(abs[i - 1] + ((curr - prev + 12) % 12))
+  }
+  return abs
+}
+
+function nextScaleNote(note: string, scaleNotes: string[]): string {
+  const i = scaleNotes.indexOf(note)
+  return scaleNotes[(i + 1) % scaleNotes.length]
+}
+
+function fretForAscendingPitch(openAbs: number, targetNoteIndex: number, minAbs: number): number | null {
+  for (let fret = 0; fret <= 36; fret++) {
+    const abs = openAbs + fret
+    if (abs >= minAbs && abs % 12 === targetNoteIndex) return fret
+  }
+  return null
+}
+
+/**
+ * Real 3-notes-per-string shapes (not fret-range boxes).
+ *
+ * Each position plays three consecutive scale tones on every string, then
+ * continues the scale on the next higher string. Positions 1–7 start on
+ * successive scale degrees so the shapes overlap up the neck.
+ *
+ * Starting degrees follow the Jens Larsen "C Majeur – 7 Positions – 3NPS"
+ * chart (low-to-high): position 1 starts on the 4th scale degree (F in C
+ * major), then 5, 6, 7, 1, 2, 3. That matches C major / C Ionian exactly
+ * and transposes for other roots — G major position 1 is the same fingering
+ * as C major position 1, moved to start on C (the 4th of G). The start fret
+ * is the lowest occurrence of that degree on the lowest string in frets 1–12
+ * (octave-wrapped so shapes stay on the neck).
+ */
+export function get3NPSNotes(
+  tuning: string[],
+  scaleNotes: string[],
+  position: number,
+): ThreeNPSNote[] {
+  if (tuning.length === 0 || scaleNotes.length === 0) return []
+
+  const uniqueScaleNotes = [...new Set(scaleNotes)]
+  const startDegreeIndex = (position + 2) % uniqueScaleNotes.length
+  const startNote = uniqueScaleNotes[startDegreeIndex]
+
+  let startFret: number | null = null
+  for (let fret = 1; fret <= 12; fret++) {
+    if (getNoteAtFret(tuning[0], fret) === startNote) {
+      startFret = fret
+      break
+    }
+  }
+  if (startFret === null) return []
+
+  const openAbs = getOpenStringAbsPitches(tuning)
+  if (openAbs.some(v => v < 0)) return []
+
+  const notes: ThreeNPSNote[] = [{ tuningIndex: 0, fret: startFret }]
+  let lastNote = startNote
+  let lastAbs = openAbs[0] + startFret
+
+  for (let tuningIndex = 0; tuningIndex < tuning.length; tuningIndex++) {
+    const notesNeeded = tuningIndex === 0 ? 2 : 3
+    for (let n = 0; n < notesNeeded; n++) {
+      const target = nextScaleNote(lastNote, uniqueScaleNotes)
+      const targetIdx = NOTES.indexOf(target as typeof NOTES[number])
+      const fret = fretForAscendingPitch(openAbs[tuningIndex], targetIdx, lastAbs + 1)
+      if (fret === null) return notes
+      notes.push({ tuningIndex, fret })
+      lastNote = target
+      lastAbs = openAbs[tuningIndex] + fret
+    }
+  }
+
+  return notes
+}
+
+/** Display-string keys (`${displayIndex}-${fret}`) for the current 3NPS shape. Display index 0 is the highest string. */
+export function get3NPSDisplayKeySet(
+  tuning: string[],
+  scaleNotes: string[],
+  position: number,
+): Set<string> {
+  const keys = new Set<string>()
+  for (const { tuningIndex, fret } of get3NPSNotes(tuning, scaleNotes, position)) {
+    keys.add(`${tuning.length - 1 - tuningIndex}-${fret}`)
+  }
+  return keys
+}
+
+export function get3NPSFretRange(
+  tuning: string[],
+  scaleNotes: string[],
+  position: number,
+): [number, number] | null {
+  const notes = get3NPSNotes(tuning, scaleNotes, position)
+  if (notes.length === 0) return null
+  let minFret = notes[0].fret
+  let maxFret = notes[0].fret
+  for (const { fret } of notes) {
+    if (fret < minFret) minFret = fret
+    if (fret > maxFret) maxFret = fret
+  }
+  return [minFret, maxFret]
 }
 
 // Check if a note is the root of the scale

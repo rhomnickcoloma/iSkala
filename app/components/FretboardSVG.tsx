@@ -7,7 +7,9 @@ import {
   getScaleNotes, 
   isRootNote,
   isBlueNote,
-  getIntervalName
+  getIntervalName,
+  get3NPSDisplayKeySet,
+  get3NPSFretRange,
 } from '../lib/scales'
 import { useInstrument } from '../context/InstrumentContext'
 
@@ -22,17 +24,6 @@ const CAGED_POSITIONS = {
   3: { name: 'Position 3', fretRange: [4, 8] },
   4: { name: 'Position 4', fretRange: [7, 11] },
   5: { name: 'Position 5', fretRange: [9, 13] },
-}
-
-// 3NPS position fret ranges
-const THREE_NPS_POSITIONS = {
-  1: { name: 'Position 1', fretRange: [0, 4] },
-  2: { name: 'Position 2', fretRange: [2, 6] },
-  3: { name: 'Position 3', fretRange: [4, 8] },
-  4: { name: 'Position 4', fretRange: [5, 9] },
-  5: { name: 'Position 5', fretRange: [7, 11] },
-  6: { name: 'Position 6', fretRange: [9, 13] },
-  7: { name: 'Position 7', fretRange: [11, 15] },
 }
 
 // Diagonal patterns
@@ -83,12 +74,19 @@ export default function FretboardSVG({
 
   const scaleNotes = getScaleNotes(selectedKey, selectedScale)
   const currentScale = SCALES[selectedScale]
+  const threeNpsKeys = get3NPSDisplayKeySet(tuning, scaleNotes, selectedPosition)
+  const threeNpsFretRange = get3NPSFretRange(tuning, scaleNotes, selectedPosition)
 
   const rootIndex = NOTES.indexOf(selectedKey as typeof NOTES[number])
   const positionOffset = rootIndex >= 5 ? rootIndex - 12 : rootIndex
 
   const isInPattern = (fret: number, stringIndex?: number): boolean => {
     if (patternMode === 'full') return true
+
+    if (patternMode === '3nps') {
+      if (stringIndex === undefined) return true
+      return threeNpsKeys.has(`${stringIndex}-${fret}`)
+    }
     
     if (patternMode === 'diagonal' && stringIndex !== undefined) {
       const pattern = DIAGONAL_PATTERNS[diagonalType]
@@ -100,8 +98,7 @@ export default function FretboardSVG({
       return fret >= adjustedMin && fret <= adjustedMax
     }
     
-    const positions = patternMode === '3nps' ? THREE_NPS_POSITIONS : CAGED_POSITIONS
-    const position = positions[selectedPosition as keyof typeof positions]
+    const position = CAGED_POSITIONS[selectedPosition as keyof typeof CAGED_POSITIONS]
     if (!position) return true
     
     const [minFret, maxFret] = position.fretRange
@@ -128,13 +125,22 @@ export default function FretboardSVG({
 
         {/* Position highlight box */}
         {patternMode !== 'full' && patternMode !== 'diagonal' && (() => {
-          const positions = patternMode === '3nps' ? THREE_NPS_POSITIONS : CAGED_POSITIONS
-          const position = positions[selectedPosition as keyof typeof positions]
-          if (!position) return null
-          
-          const [minFret, maxFret] = position.fretRange
-          const adjustedMin = Math.max(1, minFret + positionOffset)
-          const adjustedMax = Math.min(FRET_COUNT, maxFret + positionOffset)
+          let adjustedMin: number
+          let adjustedMax: number
+
+          if (patternMode === '3nps') {
+            if (!threeNpsFretRange) return null
+            adjustedMin = Math.max(1, threeNpsFretRange[0])
+            adjustedMax = Math.min(FRET_COUNT, threeNpsFretRange[1])
+          } else {
+            const position = CAGED_POSITIONS[selectedPosition as keyof typeof CAGED_POSITIONS]
+            if (!position) return null
+            const [minFret, maxFret] = position.fretRange
+            adjustedMin = Math.max(1, minFret + positionOffset)
+            adjustedMax = Math.min(FRET_COUNT, maxFret + positionOffset)
+          }
+
+          if (adjustedMin > adjustedMax) return null
           
           const x = 58 + (adjustedMin - 1) * 60
           const width = (adjustedMax - adjustedMin + 1) * 60

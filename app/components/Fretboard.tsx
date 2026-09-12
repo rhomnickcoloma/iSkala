@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 import { 
   NOTES,
@@ -9,7 +9,11 @@ import {
   getScaleNotes, 
   isRootNote,
   isBlueNote,
-  getIntervalName
+  getIntervalName,
+  THREE_NPS_POSITION_COUNT,
+  get3NPSDisplayKeySet,
+  get3NPSFretRange,
+  getScaleSelectGroups,
 } from '../lib/scales'
 import { useInstrument } from '../context/InstrumentContext'
 import KeySelector from './KeySelector'
@@ -41,16 +45,12 @@ const CAGED_POSITIONS = {
   5: { name: 'Position 5', fretRange: [9, 13] },
 }
 
-// 3NPS position fret ranges
-const THREE_NPS_POSITIONS = {
-  1: { name: 'Position 1', fretRange: [0, 4] },
-  2: { name: 'Position 2', fretRange: [2, 6] },
-  3: { name: 'Position 3', fretRange: [4, 8] },
-  4: { name: 'Position 4', fretRange: [5, 9] },
-  5: { name: 'Position 5', fretRange: [7, 11] },
-  6: { name: 'Position 6', fretRange: [9, 13] },
-  7: { name: 'Position 7', fretRange: [11, 15] },
-}
+const THREE_NPS_POSITIONS: Record<number, { name: string }> = Object.fromEntries(
+  Array.from({ length: THREE_NPS_POSITION_COUNT }, (_, i) => [
+    i + 1,
+    { name: `Position ${i + 1}` },
+  ])
+)
 
 // Diagonal patterns - fret range per string (string 6 to string 1, low E to high E)
 // These create extended diagonal runs across the neck
@@ -174,6 +174,14 @@ export default function Fretboard() {
   const scaleNotes = getScaleNotes(selectedKey, selectedScale)
   const currentScale = SCALES[selectedScale]
   const fretCount = Math.max(1, endFret - startFret + 1)
+  const threeNpsKeys = useMemo(
+    () => get3NPSDisplayKeySet(tuning, scaleNotes, selectedPosition),
+    [tuning, scaleNotes, selectedPosition]
+  )
+  const threeNpsFretRange = useMemo(
+    () => get3NPSFretRange(tuning, scaleNotes, selectedPosition),
+    [tuning, scaleNotes, selectedPosition]
+  )
 
   // Handle note click with single/double-click distinction
   const handleNoteClick = (stringIndex: number, fret: number) => {
@@ -671,6 +679,11 @@ export default function Fretboard() {
   // Check if a fret/string is within the current pattern position
   const isInPattern = (fret: number, stringIndex?: number): boolean => {
     if (patternMode === 'full') return true
+
+    if (patternMode === '3nps') {
+      if (stringIndex === undefined) return true
+      return threeNpsKeys.has(`${stringIndex}-${fret}`)
+    }
     
     if (patternMode === 'diagonal' && stringIndex !== undefined) {
       const pattern = DIAGONAL_PATTERNS[diagonalType]
@@ -682,8 +695,7 @@ export default function Fretboard() {
       return fret >= adjustedMin && fret <= adjustedMax
     }
     
-    const positions = patternMode === '3nps' ? THREE_NPS_POSITIONS : CAGED_POSITIONS
-    const position = positions[selectedPosition as keyof typeof positions]
+    const position = CAGED_POSITIONS[selectedPosition as keyof typeof CAGED_POSITIONS]
     if (!position) return true
     
     const [minFret, maxFret] = position.fretRange
@@ -709,8 +721,12 @@ export default function Fretboard() {
             onChange={(e) => setSelectedScale(e.target.value)}
             className="select-input scale-select-prominent"
           >
-            {Object.entries(SCALES).map(([key, scale]) => (
-              <option key={key} value={key}>{scale.name}</option>
+            {getScaleSelectGroups().map(group => (
+              <optgroup key={group.label} label={group.label}>
+                {group.keys.map(key => (
+                  <option key={key} value={key}>{SCALES[key].name}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
           <div className="display-buttons">
@@ -989,13 +1005,21 @@ export default function Fretboard() {
 
           {/* Position highlight box */}
           {patternMode !== 'full' && (() => {
-            const positions = patternMode === '3nps' ? THREE_NPS_POSITIONS : CAGED_POSITIONS
-            const position = positions[selectedPosition as keyof typeof positions]
-            if (!position) return null
-            
-            const [minFret, maxFret] = position.fretRange
-            const adjustedMin = Math.max(1, minFret + positionOffset)
-            const adjustedMax = Math.min(24, maxFret + positionOffset)
+            let adjustedMin: number
+            let adjustedMax: number
+
+            if (patternMode === '3nps') {
+              if (!threeNpsFretRange) return null
+              adjustedMin = threeNpsFretRange[0]
+              adjustedMax = threeNpsFretRange[1]
+            } else {
+              const position = CAGED_POSITIONS[selectedPosition as keyof typeof CAGED_POSITIONS]
+              if (!position) return null
+              const [minFret, maxFret] = position.fretRange
+              adjustedMin = Math.max(1, minFret + positionOffset)
+              adjustedMax = Math.min(24, maxFret + positionOffset)
+            }
+
             const visibleMin = Math.max(adjustedMin, startFret)
             const visibleMax = Math.min(adjustedMax, endFret)
             if (visibleMin > visibleMax) return null
