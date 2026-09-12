@@ -7,7 +7,7 @@ import {
   getScaleNotes,
   getNoteAtFret,
   get3NPSNotes,
-} from '../app/lib/scales.ts'
+} from '../app/lib/scales'
 
 const C_MAJOR_CHART: Record<number, number[][]> = {
   // tuning index 0 = low E … 5 = high E
