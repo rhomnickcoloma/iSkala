@@ -22,6 +22,7 @@ import ScaleInfoPanel from './ScaleInfoPanel'
 import ProgressionView from './ProgressionView'
 
 const FRET_WIDTH = 72
+const MAX_FRET = 24
 
 type DisplayMode = 'notes' | 'intervals' | 'none'
 type LabelRotation = 0 | 180
@@ -136,11 +137,13 @@ export default function Fretboard() {
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false)
   const [startFret, setStartFret] = useState<number>(1)
   const [endFret, setEndFret] = useState<number>(instrument.defaultFretCount)
+  const [activeCropThumb, setActiveCropThumb] = useState<'start' | 'end' | null>(null)
   
   useEffect(() => {
     if (!instrument.supportsPatterns && patternMode !== 'full') {
       setPatternMode('full')
     }
+    setStartFret(prev => Math.min(prev, instrument.defaultFretCount))
     setEndFret(instrument.defaultFretCount)
     setHiddenPositions(new Set())
     setHighlightedPositions(new Set())
@@ -933,52 +936,54 @@ export default function Fretboard() {
         )}
 
         <div className="start-fret-selector">
-          <label htmlFor="start-fret">Crop Frets:</label>
-          <input
-            id="start-fret"
-            type="number"
-            min={1}
-            max={24}
-            value={startFret}
-            onChange={(e) => {
-              const v = e.target.value
-              if (v === '') return
-              const n = parseInt(v, 10)
-              if (!isNaN(n)) {
-                const clamped = Math.max(1, Math.min(24, n))
-                setStartFret(clamped)
-                if (clamped > endFret) setEndFret(clamped)
-              }
-            }}
-            onBlur={(e) => {
-              const v = e.target.value
-              if (v === '' || isNaN(parseInt(v, 10))) setStartFret(1)
-            }}
-            className="start-fret-input"
-          />
-          <span className="start-fret-range">→</span>
-          <input
-            id="end-fret"
-            type="number"
-            min={1}
-            max={24}
-            value={endFret}
-            onChange={(e) => {
-              const v = e.target.value
-              if (v === '') return
-              const n = parseInt(v, 10)
-              if (!isNaN(n)) {
-                const clamped = Math.max(1, Math.min(24, n))
-                setEndFret(clamped)
-                if (clamped < startFret) setStartFret(clamped)
-              }
-            }}
-            onBlur={(e) => {
-              const v = e.target.value
-              if (v === '' || isNaN(parseInt(v, 10))) setEndFret(startFret + instrument.defaultFretCount - 1)
-            }}
-            className="start-fret-input"
-          />
+          <label id="crop-frets-label">Crop Frets:</label>
+          <div className="crop-slider" role="group" aria-labelledby="crop-frets-label">
+            <span className="crop-slider-value" aria-hidden="true">{startFret}</span>
+            <div className="crop-slider-track">
+              <div
+                className="crop-slider-fill"
+                style={{
+                  left: `${((startFret - 1) / (MAX_FRET - 1)) * 100}%`,
+                  width: `${((endFret - startFret) / (MAX_FRET - 1)) * 100}%`,
+                }}
+              />
+              <input
+                id="start-fret"
+                type="range"
+                min={1}
+                max={MAX_FRET}
+                step={1}
+                value={startFret}
+                aria-label="Start fret"
+                className={`crop-slider-input crop-slider-start${activeCropThumb === 'start' ? ' active' : ''}`}
+                onPointerDown={() => setActiveCropThumb('start')}
+                onChange={(e) => {
+                  const next = parseInt(e.target.value, 10)
+                  if (!Number.isNaN(next)) {
+                    setStartFret(Math.max(1, Math.min(next, endFret)))
+                  }
+                }}
+              />
+              <input
+                id="end-fret"
+                type="range"
+                min={1}
+                max={MAX_FRET}
+                step={1}
+                value={endFret}
+                aria-label="End fret"
+                className={`crop-slider-input crop-slider-end${activeCropThumb === 'end' ? ' active' : ''}`}
+                onPointerDown={() => setActiveCropThumb('end')}
+                onChange={(e) => {
+                  const next = parseInt(e.target.value, 10)
+                  if (!Number.isNaN(next)) {
+                    setEndFret(Math.min(MAX_FRET, Math.max(next, startFret)))
+                  }
+                }}
+              />
+            </div>
+            <span className="crop-slider-value" aria-hidden="true">{endFret}</span>
+          </div>
         </div>
       </div>
 
