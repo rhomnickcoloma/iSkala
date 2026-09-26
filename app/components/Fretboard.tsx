@@ -520,6 +520,150 @@ export default function Fretboard() {
     img.src = url
   }, [selectedKey, currentScale])
 
+  // Download frets and dots: transparent background with frets, strings, nut, fret markers, fret numbers, and scale notes
+  const downloadFretsAndDotsPNG = useCallback(() => {
+    if (!fretboardSvgRef.current) return
+
+    const svg = fretboardSvgRef.current
+    const viewBox = svg.viewBox.baseVal
+
+    const newSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    newSvg.setAttribute('viewBox', `0 0 ${viewBox.width} ${viewBox.height}`)
+    newSvg.setAttribute('width', String(viewBox.width))
+    newSvg.setAttribute('height', String(viewBox.height))
+
+    // No background — transparent
+
+    // Draw nut if starting from fret 1
+    if (startFret === 1) {
+      const nut = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+      nut.setAttribute('x', '50')
+      nut.setAttribute('y', '20')
+      nut.setAttribute('width', '8')
+      nut.setAttribute('height', String(STRING_COUNT * 30))
+      nut.setAttribute('fill', '#f5f5dc')
+      nut.setAttribute('rx', '2')
+      newSvg.appendChild(nut)
+    }
+
+    // Draw fret markers (dots)
+    ;[3, 5, 7, 9, 12, 15, 17, 19, 21, 24].forEach(fret => {
+      if (fret < startFret || fret > endFret) return
+      const mx = 58 + (fret - startFret + 0.5) * FRET_WIDTH
+      const my = 20 + (STRING_COUNT * 30) / 2
+      if (fret === 12 || fret === 24) {
+        const d1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+        d1.setAttribute('cx', String(mx)); d1.setAttribute('cy', String(my - 30))
+        d1.setAttribute('r', '8'); d1.setAttribute('fill', 'rgba(255,255,255,0.15)')
+        newSvg.appendChild(d1)
+        const d2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+        d2.setAttribute('cx', String(mx)); d2.setAttribute('cy', String(my + 30))
+        d2.setAttribute('r', '8'); d2.setAttribute('fill', 'rgba(255,255,255,0.15)')
+        newSvg.appendChild(d2)
+      } else {
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+        dot.setAttribute('cx', String(mx)); dot.setAttribute('cy', String(my))
+        dot.setAttribute('r', '8'); dot.setAttribute('fill', 'rgba(255,255,255,0.15)')
+        newSvg.appendChild(dot)
+      }
+    })
+
+    // Draw frets
+    for (let i = 0; i <= fretCount; i++) {
+      const fretLine = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+      fretLine.setAttribute('x1', String(58 + i * FRET_WIDTH))
+      fretLine.setAttribute('y1', '20')
+      fretLine.setAttribute('x2', String(58 + i * FRET_WIDTH))
+      fretLine.setAttribute('y2', String(20 + STRING_COUNT * 30))
+      fretLine.setAttribute('stroke', 'rgba(200,200,200,0.6)')
+      fretLine.setAttribute('stroke-width', i === 0 ? '4' : '2')
+      newSvg.appendChild(fretLine)
+    }
+
+    // Draw strings
+    tuning.slice().reverse().forEach((_, stringIndex) => {
+      const sy = 35 + stringIndex * 30
+      const thickness = 1 + stringIndex * 0.4
+      const stringStartX = startFret === 1 ? 50 : 58
+      const stringLine = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+      stringLine.setAttribute('x1', String(stringStartX))
+      stringLine.setAttribute('y1', String(sy))
+      stringLine.setAttribute('x2', String(58 + fretCount * FRET_WIDTH))
+      stringLine.setAttribute('y2', String(sy))
+      stringLine.setAttribute('stroke', 'rgba(220,220,220,0.7)')
+      stringLine.setAttribute('stroke-width', String(thickness))
+      newSvg.appendChild(stringLine)
+    })
+
+    // Draw fret numbers
+    for (let i = 0; i < fretCount; i++) {
+      const fretNum = startFret + i
+      const tx = 58 + (i + 0.5) * FRET_WIDTH
+      const ty = STRING_COUNT * 30 + 50
+
+      const fretText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      fretText.setAttribute('x', String(tx))
+      fretText.setAttribute('y', String(ty))
+      fretText.setAttribute('text-anchor', 'middle')
+      fretText.setAttribute('font-size', '12')
+      fretText.setAttribute('fill', 'rgba(180,180,180,0.8)')
+      fretText.setAttribute('font-family', 'system-ui, sans-serif')
+      fretText.textContent = String(fretNum)
+      newSvg.appendChild(fretText)
+    }
+
+    // Copy scale notes and outside notes
+    const noteGroups = svg.querySelectorAll('g.clickable-note:not(.hidden-note):not(.empty-slot)')
+    noteGroups.forEach((group) => {
+      newSvg.appendChild(group.cloneNode(true) as Element)
+    })
+
+    // Copy slide connections
+    const slides = svg.querySelectorAll('g.slide-connection')
+    slides.forEach((group) => {
+      const clone = group.cloneNode(true) as Element
+      const deleteBtn = clone.querySelector('.slide-delete')
+      if (deleteBtn) deleteBtn.remove()
+      newSvg.appendChild(clone)
+    })
+
+    const svgData = new XMLSerializer().serializeToString(newSvg)
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
+    const url = URL.createObjectURL(svgBlob)
+
+    const img = new Image()
+    img.onload = () => {
+      const scale = 2
+      const canvas = document.createElement('canvas')
+      canvas.width = viewBox.width * scale
+      canvas.height = viewBox.height * scale
+
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      ctx.scale(scale, scale)
+      ctx.drawImage(img, 0, 0)
+
+      canvas.toBlob((blob) => {
+        if (!blob) return
+
+        const downloadUrl = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = downloadUrl
+        link.download = `${selectedKey}-${currentScale?.name.replace(/\s+/g, '-').toLowerCase()}-frets-and-dots.png`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+
+        URL.revokeObjectURL(downloadUrl)
+      }, 'image/png')
+
+      URL.revokeObjectURL(url)
+    }
+
+    img.src = url
+  }, [selectedKey, currentScale, startFret, endFret, fretCount, tuning, STRING_COUNT])
+
   // Download with fretboard: dots + frets, strings, nut, fret markers, and root fret numbers
   const downloadWithFretboardPNG = useCallback(() => {
     if (!fretboardSvgRef.current) return
@@ -806,6 +950,20 @@ export default function Fretboard() {
                   </button>
                   <button
                     className="download-option"
+                    onClick={() => { downloadFretsAndDotsPNG(); setShowDownloadMenu(false); }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="download-option-icon">
+                      <line x1="3" y1="8" x2="21" y2="8" opacity="0.5" /><line x1="3" y1="13" x2="21" y2="13" opacity="0.5" /><line x1="3" y1="18" x2="21" y2="18" opacity="0.5" />
+                      <line x1="9" y1="5" x2="9" y2="21" opacity="0.5" /><line x1="15" y1="5" x2="15" y2="21" opacity="0.5" />
+                      <circle cx="6" cy="10" r="2.5" fill="currentColor" stroke="none" /><circle cx="18" cy="15" r="2.5" fill="currentColor" stroke="none" />
+                    </svg>
+                    <div className="download-option-text">
+                      <span className="download-option-title">Frets & Dots</span>
+                      <span className="download-option-desc">Transparent with frets & strings</span>
+                    </div>
+                  </button>
+                  <button
+                    className="download-option"
                     onClick={() => { downloadWithFretboardPNG(); setShowDownloadMenu(false); }}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="download-option-icon">
@@ -815,7 +973,7 @@ export default function Fretboard() {
                     </svg>
                     <div className="download-option-text">
                       <span className="download-option-title">With Fretboard</span>
-                      <span className="download-option-desc">Frets, strings & root fret numbers</span>
+                      <span className="download-option-desc">Dark background, frets & strings</span>
                     </div>
                   </button>
                   {displayMode !== 'none' && (
