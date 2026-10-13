@@ -122,6 +122,7 @@ const PROGRESSIONS: Record<Style, { name: string; chords: string[] }[]> = {
     { name: 'I – ii – IV – V', chords: ['C', 'Dm', 'F', 'G'] },
     { name: 'vi – ii – V – I', chords: ['Am', 'Dm', 'E', 'Am'] },
     { name: 'vi – I – ii – iii', chords: ['Am', 'C', 'Dm', 'Em'] },
+    { name: 'I – V/vii – vi – V', chords: ['C', 'G/B', 'Am', 'G'] },
   ],
   rock: [
     { name: 'I – vi – IV – V', chords: ['C', 'Am', 'F', 'G'] },
@@ -131,6 +132,7 @@ const PROGRESSIONS: Record<Style, { name: string; chords: string[] }[]> = {
     { name: 'ii – I – V – bVII', chords: ['Dm', 'C', 'G', 'Bb'] },
     { name: 'vi – IV – I – V', chords: ['Am', 'F', 'C', 'G'] },
     { name: 'vi – V7 – II – V7', chords: ['Am', 'E7', 'D', 'G7'] },
+    { name: 'V – V – IV – I', chords: ['G', 'G', 'F', 'C'] },
   ],
   jazz: [
     { name: 'ii7 – V7 – Imaj7', chords: ['Dm7', 'G7', 'Cmaj7', 'Cmaj7'] },
@@ -139,6 +141,8 @@ const PROGRESSIONS: Record<Style, { name: string; chords: string[] }[]> = {
     { name: 'Imaj7 – I7 – IVmaj7 – iv7', chords: ['Cmaj7', 'C7', 'Fmaj7', 'Fm7'] },
     { name: 'vi7 – ii7 – V7 – Imaj7', chords: ['Am7', 'Dm7', 'G7', 'Cmaj7'] },
     { name: 'ii7 – V7 – im7', chords: ['Dm7', 'G7', 'Cm7', 'Cm7'] },
+    { name: 'Imaj7 – #io7 – ii7 – V7', chords: ['Cmaj7', 'C#dim7', 'Dm7', 'G7'] },
+    { name: 'im7 – V7 – im7 – V7', chords: ['Cm7', 'G7', 'Cm7', 'G7'] },
   ],
   blues: [
     { name: '12-Bar Blues', chords: ['C7', 'C7', 'C7', 'C7', 'F7', 'F7', 'C7', 'C7', 'G7', 'F7', 'C7', 'C7'] },
@@ -221,8 +225,9 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
   const timeSignature = 4
 
   const audioContextRef = useRef<AudioContext | null>(null)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const beatIndexRef = useRef(0)
+  const nextBeatTimeRef = useRef(0)
   const activeChordRef = useRef<{ oscillators: OscillatorNode[]; gains: GainNode[]; chord: string } | null>(null)
   const lastChordRef = useRef('')
   const manualInputRef = useRef<HTMLInputElement>(null)
@@ -392,9 +397,9 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
     }
   }, [])
 
-  const triggerChord = useCallback(async (chordName: string) => {
+  const triggerChord = useCallback(async (chordName: string, forceRetrigger: boolean = false) => {
     if (!playChordSound || !chordName) return
-    if (chordName === lastChordRef.current) return
+    if (!forceRetrigger && chordName === lastChordRef.current) return
     const ctx = await getAudioContext()
     const frequencies = getChordFrequencies(chordName)
     if (frequencies.length === 0) return
@@ -434,7 +439,7 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
 
   const togglePlayback = useCallback(async () => {
     if (isPlaying) {
-      if (intervalRef.current) clearInterval(intervalRef.current)
+      if (intervalRef.current) clearTimeout(intervalRef.current)
       intervalRef.current = null
       stopCurrentChord(0.2)
       lastChordRef.current = ''
@@ -450,8 +455,8 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
     setIsPlaying(true)
     setPickerTarget(null)
     beatIndexRef.current = 0
-    const totalBeats = flat.length * timeSignature
     const msPerBeat = (60 / bpm) * 1000
+    nextBeatTimeRef.current = performance.now()
     const tick = async () => {
       const beatIdx = beatIndexRef.current
       const chordIdx = Math.floor(beatIdx / timeSignature)
@@ -462,12 +467,15 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
           lastChordRef.current = ''
           setCurrentChordIdx(0)
           setCurrentBeat(0)
-          if (flat[0]?.trim()) await triggerChord(flat[0].trim())
+          if (flat[0]?.trim()) await triggerChord(flat[0].trim(), true)
           await playDrumBeat(0)
           beatIndexRef.current = 1
+          nextBeatTimeRef.current += msPerBeat
+          const drift = performance.now() - nextBeatTimeRef.current
+          intervalRef.current = setTimeout(tick, Math.max(0, msPerBeat - drift))
           return
         }
-        if (intervalRef.current) clearInterval(intervalRef.current)
+        if (intervalRef.current) clearTimeout(intervalRef.current)
         intervalRef.current = null
         stopCurrentChord(0.2)
         lastChordRef.current = ''
@@ -479,19 +487,25 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
       }
       setCurrentChordIdx(chordIdx)
       setCurrentBeat(beatInChord)
-      if (beatInChord === 0 && flat[chordIdx]?.trim()) await triggerChord(flat[chordIdx].trim())
+      if (beatInChord === 0 && flat[chordIdx]?.trim()) await triggerChord(flat[chordIdx].trim(), true)
       await playDrumBeat(beatInChord)
       beatIndexRef.current++
+      nextBeatTimeRef.current += msPerBeat
+      const drift = performance.now() - nextBeatTimeRef.current
+      intervalRef.current = setTimeout(tick, Math.max(0, msPerBeat - drift))
     }
     await tick()
-    intervalRef.current = setInterval(tick, msPerBeat)
   }, [isPlaying, sections, bpm, loop, timeSignature, getAudioContext, triggerChord, playDrumBeat, stopCurrentChord])
 
   useEffect(() => () => {
-    if (intervalRef.current) clearInterval(intervalRef.current)
+    if (intervalRef.current) clearTimeout(intervalRef.current)
     if (activeChordRef.current) {
       activeChordRef.current.oscillators.forEach(o => { try { o.stop() } catch {} })
       activeChordRef.current = null
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {})
+      audioContextRef.current = null
     }
   }, [])
 
@@ -809,8 +823,10 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
             <input type="range" min="0" max="100" value={chordVolume * 100}
               onChange={e => setChordVolume(Number(e.target.value) / 100)} className="cp-slider" />
           </div>
-          <button className={`cp-play-btn ${isPlaying ? 'playing' : ''}`} onClick={togglePlayback}>
+          <button className={`cp-play-btn ${isPlaying ? 'playing' : ''}`} onClick={togglePlayback}
+            title="Spacebar to play/stop">
             {isPlaying ? '⏹ Stop' : '▶ Play'}
+            {!isPlaying && <span className="play-shortcut">Space</span>}
           </button>
           <div className="volume-group">
             <button className={`cp-icon-btn ${playDrums ? 'active' : ''}`}

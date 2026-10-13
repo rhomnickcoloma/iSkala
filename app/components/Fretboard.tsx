@@ -127,7 +127,7 @@ export default function Fretboard() {
   const [selectedScale, setSelectedScale] = useState<string>('minor-pentatonic')
   const [displayMode, setDisplayMode] = useState<DisplayMode>('notes')
   const [labelRotation, setLabelRotation] = useState<LabelRotation>(0)
-  const [panelMode, setPanelMode] = useState<PanelMode>('info')
+  const [panelMode, setPanelMode] = useState<PanelMode>('none')
   const [patternMode, setPatternMode] = useState<PatternMode>('full')
   const [selectedPosition, setSelectedPosition] = useState<number>(1)
   const [diagonalType, setDiagonalType] = useState<DiagonalType>('pentatonic')
