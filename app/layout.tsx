@@ -62,23 +62,14 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     title: 'FretWiki — Interactive Guitar, Bass & Ukulele Scale Reference',
     description: DESCRIPTION,
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'FretWiki — Interactive Scale Reference for Guitar, Bass & Ukulele',
-      },
-    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'FretWiki — Interactive Guitar, Bass & Ukulele Scale Reference',
     description: DESCRIPTION,
-    images: ['/og-image.png'],
   },
   alternates: {
-    canonical: SITE_URL,
+    canonical: '/',
   },
   icons: {
     icon: [

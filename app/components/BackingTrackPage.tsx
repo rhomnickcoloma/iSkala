@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { Icon } from './Icons'
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const
 
@@ -198,6 +199,8 @@ function composeChord(root: string, accidental: string, type: string): string {
   return root + accSuffix + (typeEntry?.suffix || '')
 }
 
+const SESSION_STORAGE_KEY = 'fretwiki-backing-v1'
+
 let sectionCounter = 0
 function newSectionId() { return `s${Date.now()}_${sectionCounter++}` }
 
@@ -223,6 +226,36 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
   const [manualInput, setManualInput] = useState('')
   const [showManual, setShowManual] = useState(false)
   const timeSignature = 4
+
+  // Restore the saved session after mount so SSR markup stays identical
+  const sessionLoadedRef = useRef(false)
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || 'null')
+      if (saved) {
+        if ((ALL_NOTES as readonly string[]).includes(saved.key)) setSelectedKey(saved.key)
+        if (saved.style in STYLES) setStyle(saved.style)
+        if (typeof saved.bpm === 'number') setBpm(Math.min(240, Math.max(40, saved.bpm)))
+        if (Array.isArray(saved.sections) && saved.sections.length) {
+          setSections(saved.sections
+            .filter((s: Section) => s && Array.isArray(s.chords))
+            .map((s: Section) => ({ id: newSectionId(), label: String(s.label ?? ''), chords: s.chords.map(String) })))
+        }
+        if (typeof saved.loop === 'boolean') setLoop(saved.loop)
+        if (typeof saved.drumVolume === 'number') setDrumVolume(saved.drumVolume)
+        if (typeof saved.chordVolume === 'number') setChordVolume(saved.chordVolume)
+        if (typeof saved.playDrums === 'boolean') setPlayDrums(saved.playDrums)
+        if (typeof saved.playChordSound === 'boolean') setPlayChordSound(saved.playChordSound)
+      }
+    } catch {}
+    sessionLoadedRef.current = true
+  }, [])
+
+  useEffect(() => {
+    if (!sessionLoadedRef.current) return
+    const session = { key: selectedKey, style, bpm, sections: sections.map(({ label, chords }) => ({ label, chords })), loop, drumVolume, chordVolume, playDrums, playChordSound }
+    try { localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session)) } catch {}
+  }, [selectedKey, style, bpm, sections, loop, drumVolume, chordVolume, playDrums, playChordSound])
 
   const audioContextRef = useRef<AudioContext | null>(null)
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -424,7 +457,6 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
       oscillators.push(osc); gains.push(gain)
     })
     activeChordRef.current = { oscillators, gains, chord: chordName }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getAudioContext, chordVolume, playChordSound, stopCurrentChord])
 
   const playDrumBeat = useCallback(async (beat: number) => {
@@ -639,8 +671,8 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
       <div className="chord-player-modal">
         {/* Header */}
         <div className="chord-player-header">
-          <h2>Chord Player</h2>
-          <button className="close-btn" onClick={handleClose}>✕</button>
+          <h1>Chord Player</h1>
+          <button className="close-btn" onClick={handleClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
 
         {/* Style & Tempo */}
@@ -657,7 +689,7 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
             <div className="topbar-group">
               <label>Key</label>
               <select value={selectedKey} onChange={e => setSelectedKey(e.target.value)}
-                disabled={isPlaying} className="cp-select">
+                disabled={isPlaying} className="cp-select" aria-label="Key">
                 {ALL_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
@@ -670,7 +702,7 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
               </div>
             </div>
             <button className={`cp-icon-btn ${loop ? 'active' : ''}`} onClick={() => setLoop(!loop)} title="Loop">
-              🔁
+              <Icon name="repeat" />
             </button>
           </div>
         </div>
@@ -695,6 +727,7 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
               <div className="section-header">
                 <input
                   className="section-label-input"
+                  aria-label="Section name"
                   value={section.label}
                   onChange={e => setSections(prev => prev.map((s, i) =>
                     i === sectionIdx ? { ...s, label: e.target.value } : s
@@ -702,7 +735,7 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
                   disabled={isPlaying}
                 />
                 {sections.length > 1 && !isPlaying && (
-                  <button className="section-remove" onClick={() => removeSection(sectionIdx)} title="Remove section">✕</button>
+                  <button className="section-remove" onClick={() => removeSection(sectionIdx)} title="Remove section"><Icon name="x" size={14} /></button>
                 )}
               </div>
               <div className="chord-timeline">
@@ -725,7 +758,7 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
                       {!isPlaying && section.chords.length > 1 && (
                         <button className="chord-remove"
                           onClick={e => { e.stopPropagation(); removeChordFromSection(sectionIdx, chordIdx) }}
-                          title="Remove">✕</button>
+                          title="Remove"><Icon name="x" size={12} /></button>
                       )}
                     </div>
                   )
@@ -819,20 +852,20 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
         <div className="chord-player-footer">
           <div className="volume-group">
             <button className={`cp-icon-btn ${playChordSound ? 'active' : ''}`}
-              onClick={() => setPlayChordSound(!playChordSound)} title="Chords">🎸</button>
+              onClick={() => setPlayChordSound(!playChordSound)} title="Chords"><Icon name="guitar" /></button>
             <input type="range" min="0" max="100" value={chordVolume * 100}
-              onChange={e => setChordVolume(Number(e.target.value) / 100)} className="cp-slider" />
+              onChange={e => setChordVolume(Number(e.target.value) / 100)} className="cp-slider" aria-label="Chord volume" />
           </div>
           <button className={`cp-play-btn ${isPlaying ? 'playing' : ''}`} onClick={togglePlayback}
             title="Spacebar to play/stop">
-            {isPlaying ? '⏹ Stop' : '▶ Play'}
+            {isPlaying ? <><Icon name="stop" size="1em" /> Stop</> : <><Icon name="play" size="1em" /> Play</>}
             {!isPlaying && <span className="play-shortcut">Space</span>}
           </button>
           <div className="volume-group">
             <button className={`cp-icon-btn ${playDrums ? 'active' : ''}`}
-              onClick={() => setPlayDrums(!playDrums)} title="Drums">🥁</button>
+              onClick={() => setPlayDrums(!playDrums)} title="Drums"><Icon name="drum" /></button>
             <input type="range" min="0" max="100" value={drumVolume * 100}
-              onChange={e => setDrumVolume(Number(e.target.value) / 100)} className="cp-slider" />
+              onChange={e => setDrumVolume(Number(e.target.value) / 100)} className="cp-slider" aria-label="Drum volume" />
           </div>
         </div>
 

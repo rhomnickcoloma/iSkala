@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/terms' },
   title: 'Terms & Conditions',
   description: 'Terms and Conditions for using FretWiki by NIXX Music.',
 }
@@ -14,8 +15,8 @@ export default function TermsPage() {
         <span className="bg-note">♫</span>
         <span className="bg-note">♩</span>
         <span className="bg-note">♬</span>
-        <span className="bg-note">🎵</span>
-        <span className="bg-note">🎶</span>
+        <span className="bg-note">♪</span>
+        <span className="bg-note">♫</span>
       </div>
 
       <div className="container static-page">

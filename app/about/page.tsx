@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Icon } from '../components/Icons'
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/about' },
   title: 'About Us',
   description: 'Learn about FretWiki by NIXX Music — the free interactive fretboard reference tool for guitarists, bassists, and ukulele players.',
 }
@@ -14,8 +16,8 @@ export default function AboutPage() {
         <span className="bg-note">♫</span>
         <span className="bg-note">♩</span>
         <span className="bg-note">♬</span>
-        <span className="bg-note">🎵</span>
-        <span className="bg-note">🎶</span>
+        <span className="bg-note">♪</span>
+        <span className="bg-note">♫</span>
       </div>
 
       <div className="container static-page">
@@ -59,47 +61,47 @@ export default function AboutPage() {
             <h2>Features</h2>
             <div className="feature-grid">
               <div className="feature-card">
-                <span className="feature-icon">🎸</span>
+                <span className="feature-icon"><Icon name="guitar" size={28} /></span>
                 <h3>Multi-Instrument Support</h3>
                 <p>Guitar (6-string), Bass (4 &amp; 5-string), and Ukulele with proper tunings for each instrument.</p>
               </div>
               <div className="feature-card">
-                <span className="feature-icon">🎵</span>
+                <span className="feature-icon"><Icon name="music" size={28} /></span>
                 <h3>22+ Scales</h3>
                 <p>Minor Pentatonic, Major, Blues, Dorian, Mixolydian, Phrygian, Harmonic Minor, Lydian, Diminished, Whole Tone, Augmented, and many more.</p>
               </div>
               <div className="feature-card">
-                <span className="feature-icon">📍</span>
+                <span className="feature-icon"><Icon name="map-pin" size={28} /></span>
                 <h3>Pattern Modes</h3>
                 <p>Full Scale, 3 Notes Per String (3NPS), CAGED positions, and Diagonal patterns to master the fretboard systematically.</p>
               </div>
               <div className="feature-card">
-                <span className="feature-icon">⚖️</span>
+                <span className="feature-icon"><Icon name="scale" size={28} /></span>
                 <h3>Scale Comparison</h3>
                 <p>Compare two scales side by side or overlaid on a single fretboard to see overlapping notes and differences.</p>
               </div>
               <div className="feature-card">
-                <span className="feature-icon">🎼</span>
+                <span className="feature-icon"><Icon name="list-music" size={28} /></span>
                 <h3>Chord Progressions</h3>
                 <p>View diatonic chord progressions in any key with dominant scale suggestions for songwriting and improvisation.</p>
               </div>
               <div className="feature-card">
-                <span className="feature-icon">🎤</span>
+                <span className="feature-icon"><Icon name="mic" size={28} /></span>
                 <h3>Built-in Tuner</h3>
                 <p>Chromatic tuner with real-time pitch detection and a cents meter — no extra app needed.</p>
               </div>
               <div className="feature-card">
-                <span className="feature-icon">🥁</span>
+                <span className="feature-icon"><Icon name="drum" size={28} /></span>
                 <h3>Metronome</h3>
                 <p>Adjustable BPM with multiple time signatures (3/4, 4/4, 5/4, 6/8, 7/8) and tempo presets for structured practice.</p>
               </div>
               <div className="feature-card">
-                <span className="feature-icon">🎧</span>
+                <span className="feature-icon"><Icon name="headphones" size={28} /></span>
                 <h3>Backing Track Generator</h3>
                 <p>Create chord progressions, set tempo and time signature, then jam with loop and preset progression support.</p>
               </div>
               <div className="feature-card">
-                <span className="feature-icon">📥</span>
+                <span className="feature-icon"><Icon name="download" size={28} /></span>
                 <h3>Export as PNG</h3>
                 <p>Download fretboard diagrams as transparent overlay images or full fretboard graphics for video or print.</p>
               </div>

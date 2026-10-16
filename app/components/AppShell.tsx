@@ -5,6 +5,7 @@ import Header from './Header'
 import CompareButton from './CompareButton'
 import TunerButton from './TunerButton'
 import BackingTrackButton from './BackingTrackButton'
+import EffectsButton from './EffectsButton'
 import InstrumentSelector from './InstrumentSelector'
 import VersionInfo from './VersionInfo'
 
@@ -16,8 +17,8 @@ export default function AppShell() {
         <span className="bg-note">♫</span>
         <span className="bg-note">♩</span>
         <span className="bg-note">♬</span>
-        <span className="bg-note">🎵</span>
-        <span className="bg-note">🎶</span>
+        <span className="bg-note">♪</span>
+        <span className="bg-note">♫</span>
       </div>
 
       <div className="container">
@@ -31,6 +32,7 @@ export default function AppShell() {
         <CompareButton />
         <TunerButton />
         <BackingTrackButton />
+        <EffectsButton />
       </div>
 
       <InstrumentSelector />

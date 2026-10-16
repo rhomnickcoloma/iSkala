@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { Icon } from './Icons'
 
 interface Release {
   version: string
@@ -51,7 +52,7 @@ export default function VersionInfo() {
           <div className="changelog-modal" onClick={e => e.stopPropagation()}>
             <div className="changelog-header">
               <h2>What&apos;s New</h2>
-              <button className="changelog-close-btn" onClick={() => setShowChangelog(false)}>✕</button>
+              <button className="changelog-close-btn" onClick={() => setShowChangelog(false)} aria-label="Close"><Icon name="x" size={18} /></button>
             </div>
 
             <div className="changelog-body">

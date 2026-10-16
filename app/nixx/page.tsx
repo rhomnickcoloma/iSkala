@@ -1,40 +1,14 @@
+import type { Metadata } from 'next'
 import { InstrumentProvider } from '../context/InstrumentContext'
-import Fretboard from '../components/Fretboard'
-import Header from '../components/Header'
-import BackingTrackGenerator from '../components/BackingTrackGenerator'
-import CompareButton from '../components/CompareButton'
-import TunerButton from '../components/TunerButton'
-import InstrumentSelector from '../components/InstrumentSelector'
-import VersionInfo from '../components/VersionInfo'
+import AppShell from '../components/AppShell'
 
+export const metadata: Metadata = { robots: { index: false, follow: false } }
+
+// skipRouting keeps returning visitors on /nixx instead of redirecting to their saved instrument route
 export default function NixxPage() {
   return (
-    <InstrumentProvider>
-      <div className="bg-decoration">
-        <span className="bg-note">♪</span>
-        <span className="bg-note">♫</span>
-        <span className="bg-note">♩</span>
-        <span className="bg-note">♬</span>
-        <span className="bg-note">🎵</span>
-        <span className="bg-note">🎶</span>
-      </div>
-
-      <div className="container">
-        <Header />
-
-        <main>
-          <Fretboard />
-        </main>
-      </div>
-
-      <div className="floating-buttons">
-        <CompareButton />
-        <TunerButton />
-        <BackingTrackGenerator />
-      </div>
-
-      <InstrumentSelector />
-      <VersionInfo />
+    <InstrumentProvider skipRouting>
+      <AppShell />
     </InstrumentProvider>
   )
 }

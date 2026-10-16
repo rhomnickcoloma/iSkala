@@ -124,6 +124,7 @@ export default function Metronome() {
         <button 
           className={`play-btn ${isPlaying ? 'playing' : ''}`}
           onClick={toggleMetronome}
+          aria-label={isPlaying ? 'Stop metronome' : 'Start metronome'}
         >
           {isPlaying ? (
             <svg viewBox="0 0 24 24" fill="currentColor">

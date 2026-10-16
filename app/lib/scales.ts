@@ -464,7 +464,7 @@ export function isRootNote(note: string, rootNote: string): boolean {
 }
 
 // Get the dominant (V) note from a key
-export function getDominantNote(keyRoot: string, isMinor: boolean = false): string {
+export function getDominantNote(keyRoot: string): string {
   const rootIndex = NOTES.indexOf(keyRoot as typeof NOTES[number])
   // V chord is always 7 semitones up from the root
   const dominantIndex = (rootIndex + 7) % 12

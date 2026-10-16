@@ -20,9 +20,11 @@ import KeySelector from './KeySelector'
 import Metronome from './Metronome'
 import ScaleInfoPanel from './ScaleInfoPanel'
 import ProgressionView from './ProgressionView'
+import { Icon } from './Icons'
 
 const FRET_WIDTH = 72
 const MAX_FRET = 24
+const VIEW_STORAGE_KEY = 'fretwiki-view-v1'
 
 type DisplayMode = 'notes' | 'intervals' | 'none'
 type LabelRotation = 0 | 180
@@ -134,6 +136,39 @@ export default function Fretboard() {
   const [diagonalDirection, setDiagonalDirection] = useState<'ascending' | 'descending'>('ascending')
   const [showProgression, setShowProgression] = useState<boolean>(false)
   const [showDownloadMenu, setShowDownloadMenu] = useState<boolean>(false)
+
+  // Restore key/scale after mount (shared ?key=&scale= link wins over the last saved view) so SSR markup stays stable
+  const viewLoadedRef = useRef(false)
+  useEffect(() => {
+    let key: string | null = null, scale: string | null = null
+    try {
+      const params = new URLSearchParams(window.location.search)
+      key = params.get('key'); scale = params.get('scale')
+      if (!key && !scale) {
+        const saved = JSON.parse(localStorage.getItem(VIEW_STORAGE_KEY) || 'null')
+        key = saved?.key ?? null; scale = saved?.scale ?? null
+      }
+    } catch {}
+    if (key && (NOTES as readonly string[]).includes(key)) setSelectedKey(key)
+    if (scale && SCALES[scale]) setSelectedScale(scale)
+    viewLoadedRef.current = true
+  }, [])
+
+  useEffect(() => {
+    if (!viewLoadedRef.current) return
+    try { localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({ key: selectedKey, scale: selectedScale })) } catch {}
+    const url = new URL(window.location.href)
+    url.searchParams.set('key', selectedKey)
+    url.searchParams.set('scale', selectedScale)
+    window.history.replaceState(window.history.state, '', url)
+  }, [selectedKey, selectedScale])
+
+  useEffect(() => {
+    if (!showDownloadMenu) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowDownloadMenu(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showDownloadMenu])
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false)
   const [startFret, setStartFret] = useState<number>(1)
   const [endFret, setEndFret] = useState<number>(instrument.defaultFretCount)
@@ -150,6 +185,8 @@ export default function Fretboard() {
     setBendPositions(new Map())
     setAddedOutsideNotes(new Set())
     setSlideConnections([])
+  // Only reset when the instrument itself changes, not when pattern/fret state changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instrument.id])
 
   // Hidden notes state (for click-to-hide feature)
@@ -380,77 +417,6 @@ export default function Fretboard() {
   const clearAllSlides = () => {
     setSlideConnections([])
   }
-
-  // Generate straight line path between two points
-  const generateSlidePath = (from: { x: number; y: number }, to: { x: number; y: number }): string => {
-    return `M ${from.x} ${from.y} L ${to.x} ${to.y}`
-  }
-
-  // Download fretboard as PNG with transparent background
-  const downloadFretboardPNG = useCallback(() => {
-    if (!fretboardSvgRef.current) return
-
-    const svg = fretboardSvgRef.current
-    const svgData = new XMLSerializer().serializeToString(svg)
-    
-    // Create a modified SVG with transparent background
-    const parser = new DOMParser()
-    const svgDoc = parser.parseFromString(svgData, 'image/svg+xml')
-    const svgElement = svgDoc.documentElement
-    
-    // Find and modify the background rect to be transparent
-    const bgRect = svgElement.querySelector('rect')
-    if (bgRect && bgRect.getAttribute('fill') === '#111') {
-      bgRect.setAttribute('fill', 'transparent')
-    }
-    
-    // Also hide the fretboard wood, nut, strings, fret markers, fret numbers, string labels for clean overlay
-    // Only keep the scale note circles and their labels
-    const modifiedSvgData = new XMLSerializer().serializeToString(svgElement)
-    
-    // Create a blob from the SVG
-    const svgBlob = new Blob([modifiedSvgData], { type: 'image/svg+xml;charset=utf-8' })
-    const url = URL.createObjectURL(svgBlob)
-    
-    // Create an image element
-    const img = new Image()
-    img.onload = () => {
-      // Create canvas with 2x resolution for crisp output
-      const scale = 2
-      const canvas = document.createElement('canvas')
-      canvas.width = svg.viewBox.baseVal.width * scale
-      canvas.height = svg.viewBox.baseVal.height * scale
-      
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-      
-      // Scale for higher resolution
-      ctx.scale(scale, scale)
-      
-      // Draw the image onto the canvas
-      ctx.drawImage(img, 0, 0)
-      
-      // Convert to PNG and download
-      canvas.toBlob((blob) => {
-        if (!blob) return
-        
-        const downloadUrl = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = downloadUrl
-        link.download = `${selectedKey}-${currentScale?.name.replace(/\s+/g, '-').toLowerCase()}-fretboard.png`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        
-        // Cleanup
-        URL.revokeObjectURL(downloadUrl)
-      }, 'image/png')
-      
-      URL.revokeObjectURL(url)
-    }
-    
-    img.src = url
-  }, [selectedKey, currentScale])
 
   // Download dots only: scale notes, outside notes, slide lines; labels keep rotation; transparent background
   const downloadDotsOnlyPNG = useCallback(() => {
@@ -867,6 +833,7 @@ export default function Fretboard() {
             value={selectedScale} 
             onChange={(e) => setSelectedScale(e.target.value)}
             className="select-input scale-select-prominent"
+              aria-label="Scale"
           >
             {getScaleSelectGroups().map(group => (
               <optgroup key={group.label} label={group.label}>
@@ -894,9 +861,10 @@ export default function Fretboard() {
             <button
               className={`display-btn ${displayMode === 'none' ? 'active' : ''}`}
               onClick={() => setDisplayMode('none')}
+              aria-label="Hide note labels"
               title="Hide Labels"
             >
-              ○
+              <Icon name="eye-off" size="1em" />
             </button>
           </div>
         </div>
@@ -929,6 +897,8 @@ export default function Fretboard() {
             <button 
               className="panel-btn text-btn download-btn"
               onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+              aria-haspopup="menu"
+              aria-expanded={showDownloadMenu}
             >
               Export
             </button>
@@ -1040,7 +1010,7 @@ export default function Fretboard() {
         
         {patternMode !== 'full' && patternMode !== 'diagonal' && (
           <div className="position-selector">
-            {Object.entries(getPositions() || {}).map(([key, pos]) => (
+            {Object.keys(getPositions() || {}).map((key) => (
               <button
                 key={key}
                 className={`position-btn ${selectedPosition === Number(key) ? 'active' : ''}`}
@@ -1080,14 +1050,14 @@ export default function Fretboard() {
                 onClick={() => setDiagonalDirection('ascending')}
                 title="Ascending (low to high)"
               >
-                ↗ Up
+                <Icon name="trending-up" size="1em" /> Up
               </button>
               <button
                 className={`direction-btn ${diagonalDirection === 'descending' ? 'active' : ''}`}
                 onClick={() => setDiagonalDirection('descending')}
                 title="Descending (high to low)"
               >
-                ↘ Down
+                <Icon name="trending-down" size="1em" /> Down
               </button>
             </div>
           </div>
@@ -1648,7 +1618,7 @@ export default function Fretboard() {
                 onClick={clearBends}
                 title="Clear all bend markers"
               >
-                ✕ Bends ({bendPositions.size})
+                <Icon name="x" size="1em" /> Bends ({bendPositions.size})
               </button>
             )}
             {highlightedPositions.size > 0 && (
@@ -1657,7 +1627,7 @@ export default function Fretboard() {
                 onClick={clearHighlights}
                 title="Clear all highlighted notes"
               >
-                ✕ Highlights ({highlightedPositions.size})
+                <Icon name="x" size="1em" /> Highlights ({highlightedPositions.size})
               </button>
             )}
             {hiddenPositions.size > 0 && (
@@ -1666,7 +1636,7 @@ export default function Fretboard() {
                 onClick={resetHiddenNotes}
                 title="Restore all hidden notes"
               >
-                ↺ Reset ({hiddenPositions.size})
+                <Icon name="rotate-ccw" size="1em" /> Reset ({hiddenPositions.size})
               </button>
             )}
             {slideConnections.length > 0 && (
@@ -1675,7 +1645,7 @@ export default function Fretboard() {
                 onClick={clearAllSlides}
                 title="Clear all slide indicators"
               >
-                ✕ Slides ({slideConnections.length})
+                <Icon name="x" size="1em" /> Slides ({slideConnections.length})
               </button>
             )}
             {addedOutsideNotes.size > 0 && (
@@ -1684,7 +1654,7 @@ export default function Fretboard() {
                 onClick={clearOutsideNotes}
                 title="Clear all outside notes"
               >
-                ✕ Outside ({addedOutsideNotes.size})
+                <Icon name="x" size="1em" /> Outside ({addedOutsideNotes.size})
               </button>
             )}
           </div>

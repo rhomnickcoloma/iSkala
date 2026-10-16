@@ -1,7 +1,8 @@
+import type { IconName } from '../components/Icons'
 export interface InstrumentConfig {
   id: string
   name: string
-  icon: string
+  icon: IconName
   tuning: string[]
   stringCount: number
   defaultFretCount: number
@@ -13,7 +14,7 @@ export const INSTRUMENTS: Record<string, InstrumentConfig> = {
   'guitar': {
     id: 'guitar',
     name: 'Guitar (6-String)',
-    icon: '🎸',
+    icon: 'guitar',
     tuning: ['E', 'A', 'D', 'G', 'B', 'E'],
     stringCount: 6,
     defaultFretCount: 15,
@@ -30,7 +31,7 @@ export const INSTRUMENTS: Record<string, InstrumentConfig> = {
   'bass-4': {
     id: 'bass-4',
     name: 'Bass (4-String)',
-    icon: '🎸',
+    icon: 'guitar',
     tuning: ['E', 'A', 'D', 'G'],
     stringCount: 4,
     defaultFretCount: 15,
@@ -45,7 +46,7 @@ export const INSTRUMENTS: Record<string, InstrumentConfig> = {
   'bass-5': {
     id: 'bass-5',
     name: 'Bass (5-String)',
-    icon: '🎸',
+    icon: 'guitar',
     tuning: ['B', 'E', 'A', 'D', 'G'],
     stringCount: 5,
     defaultFretCount: 15,
@@ -61,7 +62,7 @@ export const INSTRUMENTS: Record<string, InstrumentConfig> = {
   'bass-6': {
     id: 'bass-6',
     name: 'Bass (6-String)',
-    icon: '🎸',
+    icon: 'guitar',
     tuning: ['B', 'E', 'A', 'D', 'G', 'C'],
     stringCount: 6,
     defaultFretCount: 15,
@@ -78,7 +79,7 @@ export const INSTRUMENTS: Record<string, InstrumentConfig> = {
   'ukulele': {
     id: 'ukulele',
     name: 'Ukulele',
-    icon: '🪕',
+    icon: 'guitar',
     tuning: ['G', 'C', 'E', 'A'],
     stringCount: 4,
     defaultFretCount: 12,

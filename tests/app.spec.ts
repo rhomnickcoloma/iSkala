@@ -141,7 +141,7 @@ test.describe('Backing Track', () => {
   test('page loads with chord player UI', async ({ page }) => {
     await page.goto('/backing-track')
     await expect(page.locator('.chord-player-modal')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('.chord-player-header h2')).toContainText('Chord Player')
+    await expect(page.locator('.chord-player-header h1')).toContainText('Chord Player')
   })
 
   test('style tabs: 5 genres, switching works', async ({ page }) => {
@@ -304,8 +304,8 @@ test.describe('Backing Track', () => {
   test('instrument toggle buttons work', async ({ page }) => {
     await page.goto('/backing-track')
     await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
-    const chordBtn = page.locator('.cp-icon-btn', { hasText: '🎸' })
-    const drumBtn = page.locator('.cp-icon-btn', { hasText: '🥁' })
+    const chordBtn = page.locator('.cp-icon-btn[title="Chords"]')
+    const drumBtn = page.locator('.cp-icon-btn[title="Drums"]')
     await expect(chordBtn).toHaveClass(/active/)
     await expect(drumBtn).toHaveClass(/active/)
     await chordBtn.click()
@@ -317,7 +317,7 @@ test.describe('Backing Track', () => {
   test('loop toggle works', async ({ page }) => {
     await page.goto('/backing-track')
     await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
-    const loopBtn = page.locator('.cp-icon-btn', { hasText: '🔁' })
+    const loopBtn = page.locator('.cp-icon-btn[title="Loop"]')
     await expect(loopBtn).toHaveClass(/active/)
     await loopBtn.click()
     await expect(loopBtn).not.toHaveClass(/active/)
@@ -418,5 +418,85 @@ test.describe('Footer', () => {
     await expect(footer).toBeVisible()
     await expect(footer.locator('a', { hasText: 'About' })).toBeVisible()
     await expect(footer.locator('a', { hasText: 'Terms' })).toBeVisible()
+  })
+})
+
+// ─── Regression: audit fixes ───
+
+test.describe('Regressions', () => {
+  test.beforeEach(async ({ page }) => {
+    await setInstrumentCookie(page)
+  })
+
+  test('/nixx keeps returning visitors on the route and shows V7', async ({ page }) => {
+    await page.goto('/guitar')
+    await page.goto('/nixx')
+    await page.waitForTimeout(1000)
+    expect(new URL(page.url()).pathname).toBe('/nixx')
+    await expect(page.locator('.progression-btn')).toHaveCount(1)
+  })
+
+  test('Escape closes the export menu', async ({ page, isMobile }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile' || !!isMobile, 'export menu layout differs on mobile')
+    await page.goto('/guitar')
+    await page.getByRole('button', { name: 'Export', exact: true }).click()
+    await expect(page.locator('.download-dropdown')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.download-dropdown-backdrop')).toHaveCount(0)
+  })
+
+  test('scale and key persist across refresh and sync to the URL', async ({ page }) => {
+    await page.goto('/guitar')
+    const scaleSelect = page.locator('.scale-select-prominent')
+    await scaleSelect.selectOption('dorian')
+    await page.locator('.key-selector button, .key-btn').filter({ hasText: /^E$/ }).first().click()
+    await expect(page).toHaveURL(/key=E&scale=dorian/)
+    await page.reload()
+    await expect(scaleSelect).toHaveValue('dorian')
+  })
+
+  test('shared ?key&scale link opens that view', async ({ page }) => {
+    await page.goto('/guitar?key=F%23&scale=blues')
+    await expect(page.locator('.scale-select-prominent')).toHaveValue('blues')
+  })
+
+  test('no horizontal page scroll', async ({ page }) => {
+    await page.goto('/guitar')
+    await page.waitForTimeout(500)
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+    expect(overflow).toBeLessThanOrEqual(1)
+  })
+
+  test('branded 404 page', async ({ page }) => {
+    const res = await page.goto('/this-page-does-not-exist')
+    expect(res?.status()).toBe(404)
+    await expect(page.locator('h1')).toContainText('Wrong note')
+    await expect(page.locator('.not-found-link')).toHaveCount(5)
+  })
+
+  test('backing track progression survives refresh', async ({ page }) => {
+    await page.goto('/backing-track')
+    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await page.locator('.cp-select').selectOption('G')
+    await page.reload()
+    await expect(page.locator('.cp-select')).toHaveValue('G')
+  })
+
+  test('effects page: knobs are keyboard accessible, tuner toggles', async ({ page }) => {
+    await page.goto('/effects')
+    const knob = page.locator('.fx-rotary').first()
+    await expect(knob).toHaveAttribute('role', 'slider')
+    const before = Number(await knob.getAttribute('aria-valuenow'))
+    await knob.focus()
+    await page.keyboard.press('ArrowUp')
+    await expect(knob).not.toHaveAttribute('aria-valuenow', String(before))
+    await expect(page.locator('.fx-sample-rate, .fx-rate-select')).toHaveValue('48000')
+  })
+
+  test('every page has its own canonical URL', async ({ page }) => {
+    for (const route of ['/guitar', '/tuner', '/effects', '/about']) {
+      await page.goto(route)
+      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `https://fretwiki.com${route}`)
+    }
   })
 })

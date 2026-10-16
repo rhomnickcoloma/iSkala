@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import Image from 'next/image'
 import { 
   NOTES,
   SCALES, 
@@ -11,6 +10,7 @@ import {
   getScaleSelectGroups,
 } from '../lib/scales'
 import { useInstrument } from '../context/InstrumentContext'
+import { Icon } from './Icons'
 
 type DisplayMode = 'notes' | 'intervals' | 'none'
 
@@ -195,7 +195,7 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
     <div className="comparison-overlay">
       <div className="comparison-modal single-fretboard">
         <div className="comparison-header">
-          <h2>Scale Comparison</h2>
+          <h1><span className="label-long">Scale Comparison</span><span className="label-short">Compare</span></h1>
           <div className="comparison-header-controls">
             <div className="comparison-display-modes">
               <button
@@ -213,8 +213,10 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
               <button
                 className={`display-btn ${displayMode === 'none' ? 'active' : ''}`}
                 onClick={() => setDisplayMode('none')}
+              aria-label="Hide note labels"
+              title="Hide note labels"
               >
-                ○
+                <Icon name="eye-off" size="1em" />
               </button>
             </div>
             {hiddenPositions.size > 0 && (
@@ -223,11 +225,11 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
                 onClick={resetHiddenNotes}
                 title="Restore all hidden notes"
               >
-                ↺ Reset ({hiddenPositions.size})
+                <Icon name="rotate-ccw" size="1em" /> Reset ({hiddenPositions.size})
               </button>
             )}
           </div>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <button className="close-btn" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         
         <div className="comparison-single-content">
@@ -241,13 +243,13 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
                     key={i} 
                     className="wave-bar"
                     style={{ 
-                      animationDelay: `${i * 0.05}s`,
-                      height: `${20 + Math.sin(i * 0.3) * 15 + Math.random() * 10}%`
+                      animationDelay: `${(i * 0.05).toFixed(2)}s`,
+                      height: `${(20 + Math.sin(i * 0.3) * 15 + ((i * 37) % 11)).toFixed(1)}%`
                     }}
                   />
                 ))}
               </div>
-              <Image 
+              <img
                 src="/logo.png" 
                 alt="FretWiki" 
                 width={60} 
@@ -261,8 +263,8 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
                     key={i} 
                     className="wave-bar"
                     style={{ 
-                      animationDelay: `${(40 - i) * 0.05}s`,
-                      height: `${20 + Math.sin(i * 0.3) * 15 + Math.random() * 10}%`
+                      animationDelay: `${((40 - i) * 0.05).toFixed(2)}s`,
+                      height: `${(20 + Math.sin(i * 0.3) * 15 + ((i * 37) % 11)).toFixed(1)}%`
                     }}
                   />
                 ))}
@@ -277,15 +279,18 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
               <button 
                 className="toggle-scale-btn"
                 onClick={() => setShowScaleA(!showScaleA)}
+                aria-label="Show scale A"
+                aria-pressed={showScaleA}
                 style={{ background: showScaleA ? colors.scaleA.fill : 'transparent' }}
               >
-                {showScaleA ? '✓' : ''}
+                {showScaleA && <Icon name="check" size="1em" />}
               </button>
               <span className="scale-label" style={{ color: colors.scaleA.fill }}>A</span>
               <select 
                 value={keyA} 
                 onChange={(e) => setKeyA(e.target.value)}
                 className="select-input compact"
+                aria-label="Scale A key"
               >
                 {NOTES.map(note => (
                   <option key={note} value={note}>{note}</option>
@@ -295,6 +300,7 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
                 value={scaleA} 
                 onChange={(e) => setScaleA(e.target.value)}
                 className="select-input compact"
+                aria-label="Scale A type"
               >
                 {getScaleSelectGroups().map(group => (
                   <optgroup key={group.label} label={group.label}>
@@ -317,15 +323,18 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
               <button 
                 className="toggle-scale-btn"
                 onClick={() => setShowScaleB(!showScaleB)}
+                aria-label="Show scale B"
+                aria-pressed={showScaleB}
                 style={{ background: showScaleB ? colors.scaleB.fill : 'transparent' }}
               >
-                {showScaleB ? '✓' : ''}
+                {showScaleB && <Icon name="check" size="1em" />}
               </button>
               <span className="scale-label" style={{ color: colors.scaleB.fill }}>B</span>
               <select 
                 value={keyB} 
                 onChange={(e) => setKeyB(e.target.value)}
                 className="select-input compact"
+                aria-label="Scale B key"
               >
                 {NOTES.map(note => (
                   <option key={note} value={note}>{note}</option>
@@ -335,6 +344,7 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
                 value={scaleB} 
                 onChange={(e) => setScaleB(e.target.value)}
                 className="select-input compact"
+                aria-label="Scale B type"
               >
                 {getScaleSelectGroups().map(group => (
                   <optgroup key={group.label} label={group.label}>
@@ -354,7 +364,7 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
               <div className="hint-icon-wrapper">
                 <span className="hint-icon">?</span>
                 <div className="hint-tooltip">
-                  <p>💡 <strong>Tips:</strong></p>
+                  <p><Icon name="lightbulb" size="1em" className="inline-icon" /><strong>Tips:</strong></p>
                   <ul>
                     <li>Click on any note to hide/show it</li>
                     <li>Hidden notes appear as dashed circles</li>

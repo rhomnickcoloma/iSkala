@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { INSTRUMENTS } from '../lib/instruments'
 import { useInstrument } from '../context/InstrumentContext'
+import { Icon } from './Icons'
 
 const INSTRUMENT_IMAGES: Record<string, string> = {
   'guitar': 'https://plus.unsplash.com/premium_photo-1693169973609-342539dea9dc?w=400&h=600&fit=crop&crop=center',
@@ -39,12 +40,12 @@ export default function InstrumentSelector() {
       <div className="instrument-modal" onClick={e => e.stopPropagation()}>
         <div className="instrument-modal-header">
           <h2>Choose Your Instrument</h2>
-          <button className="instrument-close-btn" onClick={() => setShowSelector(false)}>✕</button>
+          <button className="instrument-close-btn" onClick={() => setShowSelector(false)} aria-label="Close"><Icon name="x" size={18} /></button>
           <p>Select what you play to get the right fretboard layout</p>
         </div>
 
         <div className="instrument-columns">
-          {instruments.map(({ id, label }) => {
+          {instruments.map(({ id }) => {
             const inst = INSTRUMENTS[id]
             const isSelected = instrument.id === id
             return (

@@ -12,6 +12,7 @@ import {
   DOMINANT_SCALES
 } from '../lib/scales'
 import { useInstrument } from '../context/InstrumentContext'
+import { Icon } from './Icons'
 
 type DisplayMode = 'notes' | 'intervals' | 'none'
 type KeyQuality = 'minor' | 'major'
@@ -37,7 +38,7 @@ export default function ProgressionView({ onClose }: ProgressionViewProps) {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('notes')
 
   // Calculate the dominant (V) note
-  const dominantNote = getDominantNote(selectedKey, keyQuality === 'minor')
+  const dominantNote = getDominantNote(selectedKey)
   
   // Get scale notes for the dominant
   const dominantScaleNotes = getScaleNotes(dominantNote, selectedDominantScale)
@@ -128,12 +129,14 @@ export default function ProgressionView({ onClose }: ProgressionViewProps) {
               <button
                 className={`display-btn ${displayMode === 'none' ? 'active' : ''}`}
                 onClick={() => setDisplayMode('none')}
+              aria-label="Hide note labels"
+              title="Hide note labels"
               >
-                ○
+                <Icon name="eye-off" size="1em" />
               </button>
             </div>
           </div>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <button className="close-btn" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
         
         <div className="comparison-single-content">
@@ -213,7 +216,7 @@ export default function ProgressionView({ onClose }: ProgressionViewProps) {
               <span className="chain-arrow">→</span>
               <div className="chain-item subdominant">
                 <span className="chord-numeral">iv</span>
-                <span className="chord-name">{getDominantNote(getDominantNote(selectedKey), false)}{keyQuality === 'minor' ? 'm' : ''}</span>
+                <span className="chord-name">{getDominantNote(getDominantNote(selectedKey))}{keyQuality === 'minor' ? 'm' : ''}</span>
               </div>
               <span className="chain-arrow">→</span>
               <div className="chain-item dominant active">
@@ -467,7 +470,7 @@ export default function ProgressionView({ onClose }: ProgressionViewProps) {
 
           {/* Practice Tips */}
           <div className="progression-practice">
-            <h4>💡 Practice Tips</h4>
+            <h4><Icon name="lightbulb" size="1em" className="inline-icon" />Practice Tips</h4>
             <ul>
               {currentDominantScale?.practice.map((tip, index) => (
                 <li key={index}>{tip}</li>

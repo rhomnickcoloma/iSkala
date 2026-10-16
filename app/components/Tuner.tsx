@@ -2,100 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useInstrument } from '../context/InstrumentContext'
+import { Icon } from './Icons'
+import { autoCorrelate, getClosestNote } from '../lib/pitch'
 
 interface TunerProps {
   onClose: () => void
-}
-
-// All chromatic notes with frequencies for detection
-const NOTE_FREQUENCIES: { note: string; frequency: number }[] = []
-
-// Generate all notes from C1 to C7
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-for (let octave = 1; octave <= 6; octave++) {
-  for (let i = 0; i < NOTE_NAMES.length; i++) {
-    const noteIndex = (octave - 1) * 12 + i - 9 // A4 = 440Hz is index 0
-    const frequency = 440 * Math.pow(2, noteIndex / 12)
-    NOTE_FREQUENCIES.push({
-      note: `${NOTE_NAMES[i]}${octave}`,
-      frequency: frequency
-    })
-  }
-}
-
-// Find closest note to a frequency
-function getClosestNote(frequency: number): { note: string; targetFreq: number; cents: number } {
-  let closestNote = NOTE_FREQUENCIES[0]
-  let minDiff = Math.abs(frequency - closestNote.frequency)
-  
-  for (const noteData of NOTE_FREQUENCIES) {
-    const diff = Math.abs(frequency - noteData.frequency)
-    if (diff < minDiff) {
-      minDiff = diff
-      closestNote = noteData
-    }
-  }
-  
-  // Calculate cents (100 cents = 1 semitone)
-  const cents = 1200 * Math.log2(frequency / closestNote.frequency)
-  
-  return {
-    note: closestNote.note,
-    targetFreq: closestNote.frequency,
-    cents: Math.round(cents)
-  }
-}
-
-// Autocorrelation pitch detection
-function autoCorrelate(buffer: Float32Array, sampleRate: number): number {
-  const SIZE = buffer.length
-  const MAX_SAMPLES = Math.floor(SIZE / 2)
-  let bestOffset = -1
-  let bestCorrelation = 0
-  let rms = 0
-  let foundGoodCorrelation = false
-  
-  // Calculate RMS (volume level)
-  for (let i = 0; i < SIZE; i++) {
-    const val = buffer[i]
-    rms += val * val
-  }
-  rms = Math.sqrt(rms / SIZE)
-  
-  // Not enough signal
-  if (rms < 0.01) return -1
-  
-  let lastCorrelation = 1
-  
-  for (let offset = 0; offset < MAX_SAMPLES; offset++) {
-    let correlation = 0
-    
-    for (let i = 0; i < MAX_SAMPLES; i++) {
-      correlation += Math.abs(buffer[i] - buffer[i + offset])
-    }
-    
-    correlation = 1 - correlation / MAX_SAMPLES
-    
-    if (correlation > 0.9 && correlation > lastCorrelation) {
-      foundGoodCorrelation = true
-      if (correlation > bestCorrelation) {
-        bestCorrelation = correlation
-        bestOffset = offset
-      }
-    } else if (foundGoodCorrelation) {
-      // We've found a good correlation, then a bad one, so we're done
-      const shift = (buffer[bestOffset - 1] - buffer[bestOffset + 1]) / buffer[bestOffset]
-      return sampleRate / (bestOffset + 8 * shift)
-    }
-    
-    lastCorrelation = correlation
-  }
-  
-  if (bestCorrelation > 0.01) {
-    return sampleRate / bestOffset
-  }
-  
-  return -1
 }
 
 export default function Tuner({ onClose }: TunerProps) {
@@ -130,7 +41,7 @@ export default function Tuner({ onClose }: TunerProps) {
       setHasPermission(true)
       
       // Create audio context
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       audioContextRef.current = audioContext
       
       // Create analyser node
@@ -240,15 +151,15 @@ export default function Tuner({ onClose }: TunerProps) {
     <div className="comparison-overlay">
       <div className="tuner-modal">
         <div className="comparison-header">
-          <h2>{instrument.icon} {instrument.name} Tuner</h2>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <h1><Icon name={instrument.icon} size="0.9em" className="inline-icon" />{instrument.name} Tuner</h1>
+          <button className="close-btn" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
 
         <div className="tuner-content">
           {/* Microphone Permission Status */}
           {hasPermission === false && (
             <div className="tuner-permission-denied">
-              <p>⚠️ Microphone access denied</p>
+              <p><Icon name="alert" size="1em" className="inline-icon" />Microphone access denied</p>
               <p className="small">Please allow microphone access in your browser settings to use the tuner.</p>
             </div>
           )}
@@ -261,12 +172,12 @@ export default function Tuner({ onClose }: TunerProps) {
             >
               {isListening ? (
                 <>
-                  <span className="mic-icon listening">🎙️</span>
+                  <Icon name="mic" size="1.1em" className="mic-icon listening" />
                   <span>Stop Listening</span>
                 </>
               ) : (
                 <>
-                  <span className="mic-icon">🎤</span>
+                  <Icon name="mic" size="1.1em" className="mic-icon" />
                   <span>Start Tuning</span>
                 </>
               )}
@@ -307,12 +218,12 @@ export default function Tuner({ onClose }: TunerProps) {
                   <div className="no-signal">
                     {isListening ? (
                       <>
-                        <span className="waiting-icon">〰️</span>
+                        <Icon name="audio-waveform" size="1em" className="waiting-icon" />
                         <span>Play a note...</span>
                       </>
                     ) : (
                       <>
-                        <span className="waiting-icon">🎸</span>
+                        <Icon name={instrument.icon} size="1em" className="waiting-icon" />
                         <span>Click to start</span>
                       </>
                     )}
@@ -375,7 +286,7 @@ export default function Tuner({ onClose }: TunerProps) {
 
           {/* Tips */}
           <div className="tuner-tips">
-            <p>💡 <strong>Tips:</strong> Play one string at a time. Let the note ring clearly. Position your device close to the guitar for best results.</p>
+            <p><Icon name="lightbulb" size="1em" className="inline-icon" /><strong>Tips:</strong> Play one string at a time. Let the note ring clearly. Position your device close to the guitar for best results.</p>
           </div>
         </div>
       </div>
