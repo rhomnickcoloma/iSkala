@@ -1,4 +1,7 @@
 import { test, expect, Page } from '@playwright/test'
+import { existsSync, readFileSync } from 'fs'
+
+const accountsConfigured = existsSync('.env.local') && /^NEXT_PUBLIC_SUPABASE_URL=.+/m.test(readFileSync('.env.local', 'utf8'))
 
 // Set instrument cookie before navigating to prevent the instrument selector overlay
 async function setInstrumentCookie(page: Page) {
@@ -504,6 +507,8 @@ test.describe('Regressions', () => {
 // ─── Effects patches (local mode: no Supabase env configured) ───
 
 test.describe('Effects patches', () => {
+  test.skip(accountsConfigured, 'runs against the browser-only mode; see tests/accounts for signed-in flows')
+
   test('save, reload, load, and delete a patch', async ({ page }) => {
     page.on('dialog', d => d.accept())
     await page.goto('/effects')

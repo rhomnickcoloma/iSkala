@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "test": "playwright test",
     "test:db": "node tests/accounts/db.test.mjs",
-    "test:accounts": "node tests/accounts/flow.test.mjs"
+    "test:accounts": "node tests/accounts/flow.test.mjs",
+    "setup:supabase": "node scripts/setup-supabase.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

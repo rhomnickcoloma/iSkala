@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { Icon } from './Icons'
 
 export default function AccountButton({ className }: { className?: string }) {
-  const { enabled, ready, user, isGuest, openSignIn, signOut, deleteAccount } = useAuth()
+  const { enabled, ready, user, openSignIn, signOut, deleteAccount } = useAuth()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -20,7 +20,7 @@ export default function AccountButton({ className }: { className?: string }) {
 
   if (!enabled || !ready) return null
 
-  if (!user || isGuest) {
+  if (!user) {
     return (
       <button className={`account-btn ${className ?? ''}`} onClick={() => openSignIn()} title="Sign in with Google or Facebook">
         <Icon name="user" size={16} />

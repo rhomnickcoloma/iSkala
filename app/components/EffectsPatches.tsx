@@ -1,8 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAuth, daysLeft } from '../context/AuthContext'
-import { GUEST_TTL_DAYS } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { cloudPatchStore, localPatchStore, MAX_PATCH_NAME, type Patch, type PatchRig } from '../lib/patches'
 import { Icon } from './Icons'
 
@@ -17,8 +16,9 @@ const errorText = (e: unknown) =>
   e && typeof e === 'object' && 'message' in e && typeof e.message === 'string' ? e.message : 'Something went wrong'
 
 export default function EffectsPatches({ currentRig, activePatchId, onLoad, onActiveChange }: EffectsPatchesProps) {
-  const { enabled, ready, user, isGuest, guestExpiresAt, connect, ensureUser, openSignIn } = useAuth()
-  const store = useMemo(() => enabled ? cloudPatchStore(connect) : localPatchStore(), [enabled, connect])
+  const { enabled, ready, user, connect, openSignIn } = useAuth()
+  const signedIn = Boolean(user)
+  const store = useMemo(() => signedIn ? cloudPatchStore(connect) : localPatchStore(), [signedIn, connect])
 
   const [patches, setPatches] = useState<Patch[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,13 +26,11 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('')
 
-  const userId = user?.id ?? null
   const refresh = useCallback(async () => {
-    if (enabled && !userId) { setPatches([]); setLoading(false); return }
     setLoading(true)
     try { setPatches(await store.list()) } catch (e) { setError(errorText(e)) }
     setLoading(false)
-  }, [enabled, userId, store])
+  }, [store])
 
   useEffect(() => { if (ready) refresh() }, [ready, refresh])
 
@@ -48,7 +46,6 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
   const saveNew = () => run(async () => {
     const trimmed = name.trim()
     if (!trimmed) { setError('Give your patch a name'); return }
-    if (enabled) await ensureUser()
     const patch = await store.create(trimmed, currentRig)
     setPatches(prev => [patch, ...prev])
     onActiveChange(patch.id)
@@ -91,13 +88,10 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
       </form>
 
       <p className="fx-patches-status">
-        {!enabled && 'Patches are saved in this browser.'}
-        {enabled && !isGuest && user && 'Patches are synced to your account.'}
-        {enabled && !user && <>Your first save creates a free guest account that keeps patches for {GUEST_TTL_DAYS} days. </>}
-        {enabled && isGuest && guestExpiresAt && <>Saved to a guest account for {daysLeft(guestExpiresAt)} more days. </>}
-        {enabled && (!user || isGuest) && (
-          <button className="fx-patches-link" onClick={() => openSignIn('Sign in to keep your patches forever and load them on any device.')}>
-            Sign in to keep them forever
+        {signedIn ? 'Patches are synced to your account.' : 'Patches are saved in this browser. '}
+        {enabled && !signedIn && (
+          <button className="fx-patches-link" onClick={() => openSignIn('Sign in to keep your patches in your account and load them on any device.')}>
+            Sign in to use them on any device
           </button>
         )}
       </p>

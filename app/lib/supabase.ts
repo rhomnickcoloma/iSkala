@@ -6,11 +6,9 @@ const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 // Accounts are optional: without these env vars the site runs fully local (patches live in localStorage)
 export const authEnabled = Boolean(url && key)
 
-export const GUEST_TTL_DAYS = 30
-
 let clientPromise: Promise<SupabaseClient> | null = null
 
-// supabase-js is ~70 kB, so it is only downloaded once someone saves, signs in, or already has a session
+// supabase-js is ~70 kB, so it is only downloaded once someone signs in or already has a session
 export function loadSupabase(): Promise<SupabaseClient> {
   if (!authEnabled || typeof window === 'undefined') return Promise.reject(new Error('Accounts are not configured'))
   clientPromise ??= import('@supabase/supabase-js').then(({ createClient }) => createClient(url!, key!, {

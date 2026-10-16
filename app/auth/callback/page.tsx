@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { authEnabled } from '../../lib/supabase'
-import { claimPendingGuestData, GUEST_MERGE_KEY, useAuth } from '../../context/AuthContext'
+import { useAuth } from '../../context/AuthContext'
 
 // Only same-origin paths, never protocol-relative URLs
 function safeNext(raw: string | null) {
@@ -24,7 +24,6 @@ export default function AuthCallback() {
     ;(async () => {
       if (!authEnabled) { router.replace(next); return }
       if (providerError) {
-        localStorage.removeItem(GUEST_MERGE_KEY)
         setError(providerError)
         return
       }
@@ -34,7 +33,6 @@ export default function AuthCallback() {
         setError(sessionError?.message || 'Sign-in did not complete. Please try again.')
         return
       }
-      if (!data.session.user.is_anonymous) await claimPendingGuestData(sb)
       router.replace(next)
     })()
   }, [router, connect])
@@ -50,7 +48,7 @@ export default function AuthCallback() {
       ) : (
         <>
           <h1>Signing you in…</h1>
-          <p>Moving any guest saves into your account.</p>
+          <p>Moving patches saved in this browser into your account.</p>
         </>
       )}
     </main>

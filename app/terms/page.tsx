@@ -108,14 +108,14 @@ export default function TermsPage() {
               to save things such as effects patches.
             </p>
             <p>
-              <strong>Guest accounts.</strong> The first time you save something without signing in, FretWiki
-              creates an anonymous guest account. It holds no personal information and is deleted
-              automatically, together with everything saved to it, 30 days after it was created.
+              <strong>Without an account.</strong> Anything you save while signed out stays in your browser&apos;s
+              local storage on your device and is never sent to our servers. Clearing your browser data
+              removes it.
             </p>
             <p>
               <strong>Google or Facebook sign-in.</strong> If you sign in, we receive your name, email address and
               profile picture from the provider you choose. We use them only to identify your account and
-              show who is signed in. Anything you saved as a guest is moved into your account. We never post
+              show who is signed in. Patches saved in your browser are moved into your account when you sign in. We never post
               on your behalf or access your contacts.
             </p>
             <p>
@@ -132,7 +132,8 @@ export default function TermsPage() {
               To delete your account and everything saved to it, sign in, open the account menu (your
               profile picture in the top right) and choose <strong>Delete account</strong>. Deletion is immediate
               and permanent. If you can no longer sign in, contact us using the details below and we will
-              delete your data within 30 days. Guest accounts delete themselves after 30 days.
+              delete your data within 30 days. Data saved without an account lives only in your browser and
+              is removed by clearing your browser data.
             </p>
           </section>
 

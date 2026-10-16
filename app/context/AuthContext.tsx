@@ -3,31 +3,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { authEnabled, GUEST_TTL_DAYS, hasStoredSession, loadSupabase } from '../lib/supabase'
+import { authEnabled, hasStoredSession, loadSupabase } from '../lib/supabase'
+import { importLocalPatches, localPatchCount } from '../lib/patches'
 import { Icon } from '../components/Icons'
 
 export type OAuthProvider = 'google' | 'facebook'
-
-export const GUEST_MERGE_KEY = 'fretwiki-guest-merge'
-
-// Kept until the server confirms, so a failed merge is retried on the next visit
-export async function claimPendingGuestData(sb: SupabaseClient) {
-  const token = localStorage.getItem(GUEST_MERGE_KEY)
-  if (!token) return
-  const { error } = await sb.rpc('claim_guest_data', { p_token: token })
-  if (!error) localStorage.removeItem(GUEST_MERGE_KEY)
-}
 
 interface AuthContextValue {
   enabled: boolean
   ready: boolean
   user: User | null
-  isGuest: boolean
-  guestExpiresAt: Date | null
   /** Loads the Supabase client on first use and starts tracking its session */
   connect: () => Promise<SupabaseClient>
-  /** Returns the current user, creating a guest account on first use */
-  ensureUser: () => Promise<User>
   signIn: (provider: OAuthProvider) => Promise<void>
   signOut: () => Promise<void>
   deleteAccount: () => Promise<void>
@@ -46,18 +33,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [ready, setReady] = useState(!authEnabled)
   const [signInReason, setSignInReason] = useState<string | null>(null)
-  const guestPromise = useRef<Promise<User> | null>(null)
   const connection = useRef<Promise<SupabaseClient> | null>(null)
   const unsubscribe = useRef<(() => void) | null>(null)
 
   const connect = useCallback(() => {
     connection.current ??= loadSupabase().then(async sb => {
       const { data } = await sb.auth.getSession()
-      const sessionUser = data.session?.user
-      if (sessionUser && !sessionUser.is_anonymous && window.location.pathname !== '/auth/callback') {
-        await claimPendingGuestData(sb)
-      }
-      setUser(sessionUser ?? null)
+      const sessionUser = data.session?.user ?? null
+      // A failed import leaves the browser copy in place, so it is retried on the next visit
+      if (sessionUser) await importLocalPatches(sb).catch(() => {})
+      setUser(sessionUser)
       setReady(true)
       const { data: sub } = sb.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null))
       unsubscribe.current = () => sub.subscription.unsubscribe()
@@ -76,25 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe.current?.()
   }, [connect])
 
-  const ensureUser = useCallback(async () => {
-    const sb = await connect()
-    const { data } = await sb.auth.getSession()
-    if (data.session) return data.session.user
-    guestPromise.current ??= sb.auth.signInAnonymously().then(({ data: res, error }) => {
-      guestPromise.current = null
-      if (error || !res.user) throw error ?? new Error('Could not start a guest session')
-      return res.user
-    })
-    return guestPromise.current
-  }, [connect])
-
   const signIn = useCallback(async (provider: OAuthProvider) => {
     const sb = await connect()
-    const { data } = await sb.auth.getSession()
-    if (data.session?.user.is_anonymous) {
-      const { data: token } = await sb.rpc('create_guest_merge_token')
-      if (typeof token === 'string') localStorage.setItem(GUEST_MERGE_KEY, token)
-    }
     const next = window.location.pathname + window.location.search
     const { error } = await sb.auth.signInWithOAuth({
       provider,
@@ -115,40 +83,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await sb.auth.signOut({ scope: 'local' })
   }, [connect])
 
-  const isGuest = Boolean(user?.is_anonymous)
-  const guestExpiresAt = useMemo(
-    () => isGuest && user ? new Date(new Date(user.created_at).getTime() + GUEST_TTL_DAYS * 86_400_000) : null,
-    [isGuest, user],
-  )
-
   const value = useMemo<AuthContextValue>(() => ({
-    enabled: authEnabled, ready, user, isGuest, guestExpiresAt,
-    connect, ensureUser, signIn, signOut, deleteAccount,
+    enabled: authEnabled, ready, user,
+    connect, signIn, signOut, deleteAccount,
     openSignIn: (reason?: string) => setSignInReason(reason ?? ''),
-  }), [ready, user, isGuest, guestExpiresAt, connect, ensureUser, signIn, signOut, deleteAccount])
+  }), [ready, user, connect, signIn, signOut, deleteAccount])
 
   return (
     <AuthContext.Provider value={value}>
       {children}
       {signInReason !== null && (
-        <SignInDialog reason={signInReason} guestExpiresAt={guestExpiresAt} onSignIn={signIn} onClose={() => setSignInReason(null)} />
+        <SignInDialog reason={signInReason} onSignIn={signIn} onClose={() => setSignInReason(null)} />
       )}
     </AuthContext.Provider>
   )
 }
 
-export function daysLeft(date: Date) {
-  return Math.max(0, Math.ceil((date.getTime() - Date.now()) / 86_400_000))
-}
-
-function SignInDialog({ reason, guestExpiresAt, onSignIn, onClose }: {
+function SignInDialog({ reason, onSignIn, onClose }: {
   reason: string
-  guestExpiresAt: Date | null
   onSignIn: (p: OAuthProvider) => Promise<void>
   onClose: () => void
 }) {
   const [pending, setPending] = useState<OAuthProvider | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [localCount] = useState(localPatchCount)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -171,9 +129,9 @@ function SignInDialog({ reason, guestExpiresAt, onSignIn, onClose }: {
         <button className="auth-close" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
         <h2 id="auth-title">Sign in to FretWiki</h2>
         <p className="auth-lead">{reason || 'Keep your patches forever and use them on any device.'}</p>
-        {guestExpiresAt && (
+        {localCount > 0 && (
           <p className="auth-guest-note">
-            Your guest saves are kept for {daysLeft(guestExpiresAt)} more days. Signing in moves them into your account.
+            {localCount === 1 ? 'The patch' : `The ${localCount} patches`} saved in this browser will move into your account.
           </p>
         )}
         <div className="auth-providers">
