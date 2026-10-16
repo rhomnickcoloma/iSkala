@@ -1,0 +1,378 @@
+.fp-app {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 4rem;
+  color: #e8eaef;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.fp-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.fp-brand {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+}
+
+.fp-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+}
+
+.fp-kicker {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8aa0b8;
+  margin: 0;
+}
+
+.fp-app h1 {
+  margin: 0;
+  font-size: 1.85rem;
+  letter-spacing: -0.03em;
+}
+
+.fp-sub {
+  margin: 0.15rem 0 0;
+  color: #9aa7b8;
+  font-size: 0.92rem;
+}
+
+.fp-header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.fp-link {
+  color: #7ec8e3;
+  text-decoration: none;
+  border: 1px solid rgba(126, 200, 227, 0.3);
+  padding: 0.45rem 0.8rem;
+  border-radius: 8px;
+}
+
+.fp-listen-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.85rem;
+  background: rgba(8, 12, 18, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.fp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #1b2430;
+  color: #f2f4f8;
+  border-radius: 10px;
+  padding: 0.7rem 1.05rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.fp-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fp-btn.ghost {
+  font-weight: 500;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.82rem;
+}
+
+.fp-btn-listen {
+  background: #128a5e;
+  border-color: #1fad76;
+  font-size: 1.05rem;
+  padding: 0.85rem 1.35rem;
+}
+
+.fp-btn-listen.stop {
+  background: #a12d32;
+  border-color: #d45a5f;
+}
+
+.fp-btn-analyze {
+  background: #1d4f8a;
+  border-color: #3d7cc4;
+}
+
+.fp-meter {
+  flex: 1;
+  min-width: 120px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.fp-meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2ecc71, #f1c40f, #e74c3c);
+  width: 0;
+  transition: width 0.08s linear;
+}
+
+.fp-status {
+  font-size: 0.82rem;
+  color: #9aa7b8;
+}
+
+.fp-status.live {
+  color: #7dffa8;
+}
+
+.fp-banner {
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  margin: 0 0 1rem;
+}
+
+.fp-banner.warn {
+  background: rgba(241, 196, 15, 0.12);
+  border: 1px solid rgba(241, 196, 15, 0.35);
+  color: #f7e3a1;
+}
+
+.fp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.fp-card {
+  background: rgba(10, 14, 20, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+.fp-card h2 {
+  margin: 0 0 0.7rem;
+  font-size: 1.02rem;
+  color: #d5deea;
+}
+
+.fp-pitch {
+  font-size: 3rem;
+  font-weight: 750;
+  margin: 0.2rem 0 0.6rem;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.fp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.4rem;
+  margin: 0 0 0.6rem;
+}
+
+.fp-stats dt {
+  font-size: 0.68rem;
+  color: #8aa0b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.fp-stats dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.fp-fine {
+  color: #8b98a8;
+  font-size: 0.8rem;
+  margin: 0.35rem 0;
+}
+
+.fp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  font-size: 0.78rem;
+  color: #9aa7b8;
+  margin-bottom: 0.65rem;
+}
+
+.fp-field input,
+.fp-field select {
+  background: #121821;
+  color: #eef2f7;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.95rem;
+}
+
+.fp-inline-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.fp-timeline {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.35rem;
+  margin: 0.4rem 0 0.7rem;
+  min-height: 42px;
+}
+
+.fp-timeline-cell {
+  background: rgba(93, 173, 226, 0.12);
+  border: 1px solid rgba(93, 173, 226, 0.28);
+  border-radius: 8px;
+  text-align: center;
+  padding: 0.45rem 0.2rem;
+  font-weight: 650;
+}
+
+.fp-timeline-cell.now {
+  background: rgba(46, 204, 113, 0.25);
+  border-color: #2ecc71;
+}
+
+.fp-backing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.fp-board-card {
+  margin-bottom: 1rem;
+}
+
+.fp-fret-wrap {
+  overflow-x: auto;
+}
+
+.fp-fretboard {
+  width: 100%;
+  min-width: 720px;
+  display: block;
+}
+
+.fp-open-label,
+.fp-fret-num {
+  fill: #9aa7b8;
+  font-size: 11px;
+}
+
+.fp-dot-label {
+  fill: #111;
+  font-size: 10px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.fp-fret-hit {
+  cursor: pointer;
+}
+
+.fp-fret-hint {
+  color: #8b98a8;
+  font-size: 0.78rem;
+  margin: 0.45rem 0 0;
+}
+
+.fp-history-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.7rem;
+}
+
+.fp-chip {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #1b2430;
+  color: #eef2f7;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.fp-chip.mic {
+  border-color: rgba(46, 204, 113, 0.45);
+}
+
+.fp-list {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+  color: #d0d7e2;
+}
+
+.fp-uncertain {
+  margin-top: 0.7rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(241, 196, 15, 0.08);
+  border-left: 3px solid #f1c40f;
+  border-radius: 6px;
+}
+
+.fp-uncertain p {
+  margin: 0.25rem 0;
+  font-size: 0.85rem;
+  color: #eadca0;
+}
+
+.fp-coach-steps {
+  margin: 0.4rem 0 0;
+  padding-left: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  line-height: 1.45;
+}
+
+.fp-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 1.4rem;
+  color: #8b98a8;
+  font-size: 0.8rem;
+}
+
+.fp-footer a {
+  color: #7ec8e3;
+}
+
+@media (max-width: 860px) {
+  .fp-grid,
+  .fp-stats,
+  .fp-inline-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .fp-app h1 {
+    font-size: 1.45rem;
+  }
+
+  .fp-btn-listen {
+    width: 100%;
+    justify-content: center;
+  }
+}

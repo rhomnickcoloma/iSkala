@@ -39,6 +39,8 @@ export default function VersionInfo() {
         <div className="version-links">
           <Link href="/about" className="version-link">About</Link>
           <span className="version-sep">·</span>
+          <Link href="/fretpilot" className="version-link">FretPilot</Link>
+          <span className="version-sep">·</span>
           <Link href="/terms" className="version-link">Terms</Link>
           <span className="version-sep">·</span>
           <button className="version-btn" onClick={() => setShowChangelog(true)}>

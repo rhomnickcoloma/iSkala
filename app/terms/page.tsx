@@ -94,10 +94,15 @@ export default function TermsPage() {
           <section className="static-section">
             <h2>6. Microphone Access</h2>
             <p>
-              The built-in tuner feature requires access to your device&apos;s microphone. Microphone data
-              is processed entirely within your browser and is never transmitted to our servers or any
-              third party. Audio data is used solely for real-time pitch detection and is not recorded
-              or stored.
+              The tuner, effects, and FretPilot AI features may request access to your device&apos;s
+              microphone. Microphone audio is processed in your browser for pitch detection and is not
+              stored or uploaded by default. FretPilot does not send raw recordings to a server.
+            </p>
+            <p>
+              If a site operator configures an optional LLM API key, FretPilot may send structured
+              analysis (detected note names, entered chords, inferred key, and similar text) to that
+              provider to generate coaching. You can use FretPilot without this; the on-device theory
+              coach still works.
             </p>
           </section>
 
