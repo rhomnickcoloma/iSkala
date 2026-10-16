@@ -4,6 +4,9 @@ import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react
 import { getFile, setFile, deleteFile } from '../lib/fileStore'
 import { Icon, type IconName } from './Icons'
 import { autoCorrelate, getClosestNote } from '../lib/pitch'
+import type { Patch } from '../lib/patches'
+import EffectsPatches from './EffectsPatches'
+import AccountButton from './AccountButton'
 
 interface ChainWire { id: string; d: string; x1: number; y1: number; x2: number; y2: number; from: string; to: string }
 
@@ -508,6 +511,8 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const [showAddPicker, setShowAddPicker] = useState(false)
+  const [showPatches, setShowPatches] = useState(false)
+  const [activePatchId, setActivePatchId] = useState<string | null>(null)
   const [tunerOpen, setTunerOpen] = useState(false)
   const [tunerReading, setTunerReading] = useState<{ note: string; cents: number; hz: number } | null>(null)
   const [armedId, setArmedId] = useState<EffectId | null>(null)
@@ -554,6 +559,15 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
     setEffects(defaultChain())
     setMasterVolume(0.8)
     setInputGain(1)
+    setActivePatchId(null)
+  }
+
+  const loadPatch = (patch: Patch) => {
+    const fx = sanitizeEffects(patch.rig.effects)
+    if (!fx?.length) { alert(`Patch "${patch.name}" has no usable effects`); return }
+    setEffects(fx)
+    setMasterVolume(clampNum(patch.rig.masterVolume, 0, 1, 0.8))
+    setInputGain(clampNum(patch.rig.inputGain, 0, 2, 1))
   }
 
   const computeWires = useCallback(() => {
@@ -1091,9 +1105,12 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
             <h1>Guitar Effects</h1>
             <span className="fx-header-sub">Signal Processor</span>
           </div>
-          <button className="close-btn fx-home-btn" onClick={handleClose} aria-label="Back to FretWiki" title="Back to FretWiki">
-            <Icon name="house" size={18} />
-          </button>
+          <div className="fx-header-actions">
+            <AccountButton />
+            <button className="close-btn fx-home-btn" onClick={handleClose} aria-label="Back to FretWiki" title="Back to FretWiki">
+              <Icon name="house" size={18} />
+            </button>
+          </div>
         </div>
 
         {error && <div className="fx-error"><p><Icon name="alert" size="1em" className="inline-icon" />{error}</p><p className="fx-error-hint">Check microphone access and audio input device.</p></div>}
@@ -1193,10 +1210,26 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
         <div className="fx-section-title">
           <span>Signal Chain</span>
           <div className="fx-section-actions">
-            <button className="fx-add-btn" onClick={() => setShowAddPicker(!showAddPicker)}>+ Add</button>
+            <button
+              className={`fx-patches-toggle ${showPatches ? 'active' : ''}`}
+              onClick={() => { setShowPatches(!showPatches); setShowAddPicker(false) }}
+              aria-expanded={showPatches}
+            >
+              <Icon name="save" size={12} /> Patches
+            </button>
+            <button className="fx-add-btn" onClick={() => { setShowAddPicker(!showAddPicker); setShowPatches(false) }}>+ Add</button>
             <button className="fx-reset-btn" onClick={resetRig} title="Restore the default chain">Reset</button>
           </div>
         </div>
+
+        {showPatches && (
+          <EffectsPatches
+            currentRig={{ effects, masterVolume, inputGain }}
+            activePatchId={activePatchId}
+            onActiveChange={setActivePatchId}
+            onLoad={loadPatch}
+          />
+        )}
 
         {showAddPicker && (
           <div className="fx-add-picker">

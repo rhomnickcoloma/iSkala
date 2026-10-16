@@ -101,17 +101,38 @@ export default function TermsPage() {
             </p>
           </section>
 
-          <section className="static-section">
-            <h2>7. Privacy &amp; Data Collection</h2>
+          <section className="static-section" id="privacy">
+            <h2>7. Accounts, Privacy &amp; Data Collection</h2>
             <p>
-              FretWiki does not require user accounts or registration. We do not collect personal
-              information such as names, email addresses, or payment details. The Application may use
-              anonymous analytics (such as Vercel Analytics) to understand usage patterns and improve
-              the service. No personally identifiable information is collected through these analytics.
+              Every FretWiki tool can be used without an account. Accounts are optional and exist only
+              to save things such as effects patches.
             </p>
             <p>
-              All user preferences (selected key, scale, instrument, etc.) are stored locally in your
-              browser and are never sent to our servers.
+              <strong>Guest accounts.</strong> The first time you save something without signing in, FretWiki
+              creates an anonymous guest account. It holds no personal information and is deleted
+              automatically, together with everything saved to it, 30 days after it was created.
+            </p>
+            <p>
+              <strong>Google or Facebook sign-in.</strong> If you sign in, we receive your name, email address and
+              profile picture from the provider you choose. We use them only to identify your account and
+              show who is signed in. Anything you saved as a guest is moved into your account. We never post
+              on your behalf or access your contacts.
+            </p>
+            <p>
+              Saved data is stored with our database provider, Supabase. The Application may also use
+              anonymous analytics (such as Vercel Analytics) to understand usage patterns; these do not
+              collect personally identifiable information. Preferences such as the selected key, scale and
+              instrument stay in your browser.
+            </p>
+          </section>
+
+          <section className="static-section" id="data-deletion">
+            <h2>7a. Deleting Your Data</h2>
+            <p>
+              To delete your account and everything saved to it, sign in, open the account menu (your
+              profile picture in the top right) and choose <strong>Delete account</strong>. Deletion is immediate
+              and permanent. If you can no longer sign in, contact us using the details below and we will
+              delete your data within 30 days. Guest accounts delete themselves after 30 days.
             </p>
           </section>
 
@@ -148,7 +169,8 @@ export default function TermsPage() {
             <h2>11. Third-Party Services</h2>
             <p>
               The Application may include integrations with third-party services (e.g., Vercel for
-              hosting and analytics). Your use of such third-party services is subject to their
+              hosting and analytics, Supabase for accounts and saved data, and Google or Facebook for
+              sign-in). Your use of such third-party services is subject to their
               respective terms and privacy policies. We are not responsible for the practices of
               third-party service providers.
             </p>

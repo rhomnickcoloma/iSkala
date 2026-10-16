@@ -500,3 +500,57 @@ test.describe('Regressions', () => {
     }
   })
 })
+
+// ─── Effects patches (local mode: no Supabase env configured) ───
+
+test.describe('Effects patches', () => {
+  test('save, reload, load, and delete a patch', async ({ page }) => {
+    page.on('dialog', d => d.accept())
+    await page.goto('/effects')
+    const volume = page.getByLabel('Output volume')
+    await volume.fill('30')
+
+    await page.getByRole('button', { name: 'Patches' }).click()
+    await expect(page.locator('.fx-patches-status')).toContainText('saved in this browser')
+    await page.getByLabel('Patch name').fill('Quiet Clean')
+    await page.getByRole('button', { name: 'Save new' }).click()
+    await expect(page.locator('.fx-patches-list li.active .fx-patch-name')).toHaveText('Quiet Clean')
+
+    await page.reload()
+    await volume.fill('90')
+    await page.getByRole('button', { name: 'Patches' }).click()
+    await page.locator('.fx-patch-load', { hasText: 'Quiet Clean' }).click()
+    await expect(volume).toHaveValue('30')
+
+    await volume.fill('55')
+    await page.getByRole('button', { name: /Update “Quiet Clean”/ }).click()
+    await page.reload()
+    await page.getByRole('button', { name: 'Patches' }).click()
+    await page.locator('.fx-patch-load', { hasText: 'Quiet Clean' }).click()
+    await expect(volume).toHaveValue('55')
+
+    await page.getByRole('button', { name: 'Delete Quiet Clean' }).click()
+    await expect(page.locator('.fx-patches-empty')).toBeVisible()
+  })
+
+  test('requires a name', async ({ page }) => {
+    await page.goto('/effects')
+    await page.getByRole('button', { name: 'Patches' }).click()
+    await page.getByRole('button', { name: 'Save new' }).click()
+    await expect(page.locator('.fx-patches-error')).toContainText('name')
+  })
+
+  test('account button stays hidden without Supabase config', async ({ page }) => {
+    await setInstrumentCookie(page)
+    await page.goto('/guitar')
+    await expect(page.locator('.brand-name')).toBeVisible()
+    await expect(page.locator('.account-btn')).toHaveCount(0)
+  })
+
+  test('effects page has no horizontal scroll with patches open', async ({ page }) => {
+    await page.goto('/effects')
+    await page.getByRole('button', { name: 'Patches' }).click()
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+    expect(overflow).toBeLessThanOrEqual(1)
+  })
+})

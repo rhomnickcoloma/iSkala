@@ -2,6 +2,7 @@
 
 import { useInstrument } from '../context/InstrumentContext'
 import { Icon } from './Icons'
+import AccountButton from './AccountButton'
 
 export default function Header() {
   const { instrument, setShowSelector } = useInstrument()
@@ -20,14 +21,17 @@ export default function Header() {
           <h1><Icon name={instrument.icon} size="0.9em" className="inline-icon" />{instrument.name} Scale Reference</h1>
           <p className="subtitle">Interactive fretboard to learn scales in any key</p>
         </div>
-        <button
-          className="instrument-switch-btn"
-          onClick={() => setShowSelector(true)}
-          title="Change instrument"
-        >
-          <Icon name={instrument.icon} size={18} />
-          <span className="instrument-switch-label">{instrument.name}</span>
-        </button>
+        <div className="header-actions">
+          <AccountButton />
+          <button
+            className="instrument-switch-btn"
+            onClick={() => setShowSelector(true)}
+            title="Change instrument"
+          >
+            <Icon name={instrument.icon} size={18} />
+            <span className="instrument-switch-label">{instrument.name}</span>
+          </button>
+        </div>
       </div>
     </header>
   )

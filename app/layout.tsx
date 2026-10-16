@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { AuthProvider } from './context/AuthContext'
 import './globals.css'
 
 const SITE_URL = 'https://fretwiki.com'
@@ -132,7 +133,7 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
-        {children}
+        <AuthProvider>{children}</AuthProvider>
         <Analytics />
         <SpeedInsights />
       </body>

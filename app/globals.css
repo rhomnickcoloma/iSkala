@@ -7211,7 +7211,11 @@ footer {
   .tempo-btn,
   .direction-btn,
   .fx-add-btn,
-  .fx-reset-btn {
+  .fx-reset-btn,
+  .fx-patches-toggle,
+  .fx-patches-btn,
+  .fx-patch-delete,
+  .account-btn {
     min-height: 36px;
   }
 
@@ -7277,4 +7281,338 @@ footer {
   .scale-header .panel-buttons,
   .scale-header .display-buttons { flex-shrink: 0; }
   .scale-header .display-btn { white-space: nowrap; }
+}
+
+/* ============ Accounts ============ */
+
+.header-actions,
+.fx-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.account-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.75);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.account-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.25); color: #fff; }
+
+.account-btn.signed-in { padding: 0.2rem; border-radius: 50%; }
+
+.account-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-avatar.initial {
+  background: linear-gradient(135deg, #9b59b6, #6c3483);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.account-menu-wrap { position: relative; }
+
+.account-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 300;
+  min-width: 220px;
+  padding: 0.4rem;
+  background: #1c1c24;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.account-menu-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem 0.6rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 0.3rem;
+}
+
+.account-menu-name { color: #f0f0f0; font-size: 0.85rem; font-weight: 600; }
+.account-menu-email { color: #888; font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; }
+
+.account-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: #ccc;
+  font-family: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-menu button:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.account-menu button.danger { color: #e57373; }
+.account-menu button.danger:hover { background: rgba(231, 76, 60, 0.12); }
+
+.auth-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.auth-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  padding: 2rem 1.75rem 1.5rem;
+  background: #17171f;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  color: #ddd;
+}
+
+.auth-dialog h2 { margin: 0 0 0.5rem; font-size: 1.3rem; color: #fff; }
+.auth-lead { margin: 0 0 1rem; font-size: 0.9rem; color: #aaa; line-height: 1.5; }
+
+.auth-guest-note {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #c9a0dc;
+  background: rgba(155, 89, 182, 0.08);
+  border: 1px solid rgba(155, 89, 182, 0.25);
+  border-radius: 8px;
+}
+
+.auth-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  padding: 0.4rem;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+}
+
+.auth-close:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+
+.auth-providers { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.auth-provider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  min-height: 46px;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s, opacity 0.15s;
+}
+
+.auth-provider:hover:not(:disabled) { filter: brightness(1.08); }
+.auth-provider:disabled { opacity: 0.6; cursor: wait; }
+.auth-provider.google { background: #fff; color: #1f1f1f; }
+.auth-provider.facebook { background: #1877f2; color: #fff; }
+
+.auth-error { margin: 0.8rem 0 0; font-size: 0.8rem; color: #e57373; }
+
+.auth-fine { margin: 1.1rem 0 0; font-size: 0.75rem; color: #777; line-height: 1.5; text-align: center; }
+.auth-fine a { color: #b388d9; }
+
+.auth-callback {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+  color: #ccc;
+}
+
+.auth-callback h1 { margin: 0; font-size: 1.4rem; color: #fff; }
+.auth-callback p { margin: 0; color: #999; }
+.auth-callback a { margin-top: 0.75rem; color: #b388d9; }
+
+/* Effects patches */
+
+.fx-patches-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  background: rgba(46, 204, 113, 0.06);
+  color: #6fd59a;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.fx-patches-toggle:hover,
+.fx-patches-toggle.active { background: rgba(46, 204, 113, 0.14); border-color: rgba(46, 204, 113, 0.55); }
+
+.fx-patches {
+  margin: 0 2rem 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.fx-patches-save { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.fx-patches-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 0.55rem 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #eee;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.fx-patches-input:focus { outline: none; border-color: rgba(46, 204, 113, 0.6); }
+
+.fx-patches-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.5rem 0.9rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #ccc;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-patches-btn.primary { background: #27ae60; border-color: #27ae60; color: #fff; font-weight: 600; }
+.fx-patches-btn:hover:not(:disabled) { filter: brightness(1.12); }
+.fx-patches-btn:disabled { opacity: 0.6; cursor: wait; }
+
+.fx-patches-status { margin: 0.7rem 0 0; font-size: 0.75rem; color: #888; line-height: 1.5; }
+
+.fx-patches-link {
+  padding: 0;
+  background: none;
+  border: none;
+  color: #b388d9;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.fx-patches-error { margin: 0.5rem 0 0; font-size: 0.8rem; color: #e57373; }
+.fx-patches-empty { margin: 0.9rem 0 0.2rem; font-size: 0.8rem; color: #666; }
+
+.fx-patches-list {
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+
+.fx-patches-list li {
+  display: flex;
+  align-items: stretch;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.fx-patches-list li.active { border-color: rgba(46, 204, 113, 0.6); background: rgba(46, 204, 113, 0.07); }
+
+.fx-patch-load {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.55rem 0.75rem;
+  background: none;
+  border: none;
+  color: #ddd;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fx-patch-load:hover { background: rgba(255, 255, 255, 0.04); }
+.fx-patch-name { max-width: 100%; font-size: 0.85rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fx-patch-date { font-size: 0.7rem; color: #777; }
+
+.fx-patch-delete {
+  display: flex;
+  align-items: center;
+  padding: 0 0.7rem;
+  background: none;
+  border: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  color: #777;
+  cursor: pointer;
+}
+
+.fx-patch-delete:hover { color: #e74c3c; background: rgba(231, 76, 60, 0.1); }
+
+.fx-patches-fine { margin: 0.8rem 0 0; font-size: 0.7rem; color: #555; }
+
+@media (max-width: 768px) {
+  .header-actions { margin-left: auto; }
+  .account-btn-label { display: none; }
+  .account-btn { padding: 0.4rem 0.6rem; }
+  .account-btn.signed-in { padding: 0.15rem; }
+  .fx-patches { margin: 0 1rem 1rem; }
 }
