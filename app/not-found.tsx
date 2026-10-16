@@ -10,7 +10,6 @@ export const metadata: Metadata = {
 const LINKS: { href: string; label: string; icon: IconName }[] = [
   { href: '/', label: 'Scales', icon: 'guitar' },
   { href: '/compare-scales', label: 'Compare Scales', icon: 'scale' },
-  { href: '/tuner', label: 'Tuner', icon: 'tuning-fork' },
   { href: '/backing-track', label: 'Backing Track', icon: 'music' },
   { href: '/effects', label: 'Effects', icon: 'sliders-horizontal' },
 ]

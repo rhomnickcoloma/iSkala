@@ -3,9 +3,7 @@
 import Fretboard from './Fretboard'
 import Header from './Header'
 import CompareButton from './CompareButton'
-import TunerButton from './TunerButton'
 import BackingTrackButton from './BackingTrackButton'
-import EffectsButton from './EffectsButton'
 import InstrumentSelector from './InstrumentSelector'
 import VersionInfo from './VersionInfo'
 
@@ -30,9 +28,7 @@ export default function AppShell() {
 
       <div className="floating-buttons">
         <CompareButton />
-        <TunerButton />
         <BackingTrackButton />
-        <EffectsButton />
       </div>
 
       <InstrumentSelector />

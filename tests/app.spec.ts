@@ -358,15 +358,12 @@ test.describe('Compare Scales', () => {
   })
 })
 
-// ─── Tuner ───
+// ─── Tuner (lives in the effects drawer now) ───
 
 test.describe('Tuner', () => {
-  test('page loads without errors', async ({ page }) => {
-    const errors: string[] = []
-    page.on('pageerror', err => errors.push(err.message))
+  test('old /tuner route redirects to the effects page', async ({ page }) => {
     await page.goto('/tuner')
-    await page.waitForTimeout(2000)
-    expect(errors).toHaveLength(0)
+    await expect(page).toHaveURL(/\/effects$/)
   })
 })
 
@@ -377,12 +374,12 @@ test.describe('Floating Buttons', () => {
     await setInstrumentCookie(page)
   })
 
-  test('compare, tuner, and backing track buttons are visible', async ({ page }) => {
+  test('compare and backing track buttons are visible; tuner and effects live in the drawer', async ({ page }) => {
     await page.goto('/')
     await page.waitForSelector('svg.fretboard-svg', { timeout: 10000 })
     await expect(page.locator('.compare-float-btn')).toBeVisible()
-    await expect(page.locator('.tuner-float-btn')).toBeVisible()
     await expect(page.locator('.backing-track-toggle')).toBeVisible()
+    await expect(page.locator('.tuner-float-btn, .effects-float-btn')).toHaveCount(0)
   })
 
   test('compare button navigates to /compare-scales', async ({ page }) => {
@@ -391,14 +388,6 @@ test.describe('Floating Buttons', () => {
     await page.locator('.compare-float-btn').click()
     await page.waitForURL('**/compare-scales', { timeout: 5000 })
     expect(page.url()).toContain('compare-scales')
-  })
-
-  test('tuner button navigates to /tuner', async ({ page }) => {
-    await page.goto('/')
-    await page.waitForSelector('svg.fretboard-svg', { timeout: 10000 })
-    await page.locator('.tuner-float-btn').click()
-    await page.waitForURL('**/tuner', { timeout: 5000 })
-    expect(page.url()).toContain('tuner')
   })
 
   test('backing track button navigates to /backing-track', async ({ page }) => {
@@ -474,7 +463,7 @@ test.describe('Regressions', () => {
     const res = await page.goto('/this-page-does-not-exist')
     expect(res?.status()).toBe(404)
     await expect(page.locator('h1')).toContainText('Wrong note')
-    await expect(page.locator('.not-found-link')).toHaveCount(5)
+    await expect(page.locator('.not-found-link')).toHaveCount(4)
   })
 
   test('backing track progression survives refresh', async ({ page }) => {
@@ -497,7 +486,7 @@ test.describe('Regressions', () => {
   })
 
   test('every page has its own canonical URL', async ({ page }) => {
-    for (const route of ['/guitar', '/tuner', '/effects', '/about']) {
+    for (const route of ['/guitar', '/effects', '/about']) {
       await page.goto(route)
       await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `https://fretwiki.com${route}`)
     }
@@ -557,5 +546,156 @@ test.describe('Effects patches', () => {
     await page.getByRole('button', { name: 'Patches' }).click()
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
     expect(overflow).toBeLessThanOrEqual(1)
+  })
+})
+
+// ─── Effects drawer (compact chain on the scale pages) ───
+
+test.describe('Effects drawer', () => {
+  test.beforeEach(async ({ page }) => {
+    await setInstrumentCookie(page)
+    await page.goto('/guitar')
+    await page.locator('svg.fretboard-svg').waitFor()
+    await page.locator('.fx-drawer').waitFor()
+  })
+
+  test('is open by default and can be minimized', async ({ page }) => {
+    const drawer = page.locator('.fx-drawer')
+    await expect(drawer.locator('.fx-drawer-chain')).toBeVisible()
+    await drawer.getByRole('button', { name: 'Collapse effects drawer' }).click()
+    await expect(drawer.locator('.fx-drawer-chain')).toHaveCount(0)
+    await expect(drawer.locator('.fx-drawer-bar')).toBeVisible()
+    await drawer.getByRole('button', { name: 'Expand effects drawer' }).click()
+    await expect(drawer.locator('.fx-drawer-chain')).toBeVisible()
+  })
+
+  test('drawer tuner opens without the old tuner button', async ({ page }) => {
+    await page.locator('.fx-drawer').getByRole('button', { name: /Tuner/ }).click()
+    await expect(page.locator('.fx-drawer .fx-tuner')).toBeVisible()
+  })
+
+  test('expanded drawer shows a compact chain with no knobs', async ({ page }) => {
+    await expect(page).toHaveURL(/\/guitar/)
+    await expect(page.locator('svg.fretboard-svg')).toBeVisible()
+    const drawer = page.locator('.fx-drawer')
+    await expect(drawer.locator('.fx-block').first()).toBeVisible()
+    await expect(drawer.locator('.fx-rotary')).toHaveCount(0)
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+    expect(overflow).toBeLessThanOrEqual(1)
+  })
+
+  test('clicking a block opens an editor with working knobs', async ({ page }) => {
+    await page.locator('.fx-block-main').first().click()
+    const knob = page.locator('.fx-popup .fx-rotary').first()
+    await expect(knob).toBeVisible()
+    const before = await knob.getAttribute('aria-valuenow')
+    await knob.focus()
+    await page.keyboard.press('ArrowUp')
+    await expect(knob).not.toHaveAttribute('aria-valuenow', before!)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.fx-popup')).toHaveCount(0)
+  })
+
+  test('plays, keeps playing when collapsed, resets on a full reload', async ({ page }) => {
+    const drawer = page.locator('.fx-drawer')
+    await drawer.getByRole('button', { name: 'Unmute' }).click()
+    await expect(drawer.getByRole('button', { name: 'Mute' })).toBeVisible()
+    for (const label of ['IN', 'OUT']) {
+      await expect.poll(async () => Number(await drawer.getByRole('meter', { name: `${label} level` }).getAttribute('aria-valuenow'))).toBeGreaterThan(0)
+    }
+
+    await drawer.getByRole('button', { name: 'Collapse effects drawer' }).click()
+    await expect(drawer.locator('.fx-drawer-chain')).toHaveCount(0)
+    await expect(drawer.getByRole('button', { name: 'Mute' })).toBeVisible()
+
+    await page.goto('/bass-4')
+    await expect(page.locator('.fx-drawer').getByRole('button', { name: 'Unmute' })).toBeVisible()
+  })
+
+  test('survives a client-side instrument switch', async ({ page }) => {
+    await page.locator('.fx-drawer').getByRole('button', { name: 'Unmute' }).click()
+    await page.locator('.instrument-switch-btn').click()
+    await page.locator('.instrument-col-card', { hasText: /4-String/ }).first().click()
+    await expect(page).toHaveURL(/bass-4/)
+    await expect(page.locator('.fx-drawer').getByRole('button', { name: 'Mute' })).toBeVisible()
+  })
+
+  test('full page button hands over to /effects with the same chain', async ({ page }) => {
+    const names = await page.locator('.fx-drawer .fx-block-name').allTextContents()
+    await page.getByRole('button', { name: 'Open full effects page' }).click()
+    await expect(page).toHaveURL(/\/effects$/)
+    await expect(page.locator('.fx-drawer')).toHaveCount(0)
+    await expect(page.locator('.fx-pedalboard .fx-pedal h3')).toHaveText(names)
+  })
+
+  test('power button turns audio off but keeps the drawer', async ({ page }) => {
+    const drawer = page.locator('.fx-drawer')
+    await expect(drawer.getByRole('button', { name: 'Turn off audio' })).toHaveCount(0)
+    await drawer.getByRole('button', { name: 'Unmute' }).click()
+    await drawer.getByRole('button', { name: 'Turn off audio' }).click()
+    await expect(drawer.getByRole('button', { name: 'Unmute' })).toBeVisible()
+    await expect(drawer.getByRole('button', { name: 'Turn off audio' })).toHaveCount(0)
+  })
+})
+
+test.describe('Pedal style switch', () => {
+  test('classic skin persists, shows footswitches, and the footswitch bypasses', async ({ page }) => {
+    await page.goto('/effects')
+    await page.locator('.fx-pedalboard .fx-pedal').first().waitFor()
+    await page.getByRole('radio', { name: 'Classic' }).click()
+    await expect(page.locator('.fx-modal.fx-skin-classic')).toHaveCount(1)
+    const first = page.locator('.fx-pedalboard .fx-pedal').first()
+    await first.locator('.fx-stomp').click()
+    await expect(first).toHaveClass(/\boff\b/)
+    await first.locator('.fx-stomp').click()
+    await expect(first).toHaveClass(/\bon\b/)
+
+    await page.reload()
+    await expect(page.locator('.fx-modal.fx-skin-classic')).toHaveCount(1)
+    await page.getByRole('radio', { name: 'Modern' }).click()
+    await expect(page.locator('.fx-stomp')).toHaveCount(0)
+  })
+})
+
+test.describe('NIXX presets', () => {
+  const PRESETS: [string, string[]][] = [
+    ['Clean', ['Noise Gate', 'Compressor', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
+    ['Clean Sky', ['Compressor', 'Amplifier', 'Cabinet', 'Chorus', 'Delay', 'Reverb']],
+    ['Funk', ['Noise Gate', 'Compressor', 'Amplifier', 'Cabinet', 'Phaser', 'Reverb']],
+    ['Blues OD', ['Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', 'Reverb']],
+    ['Butter OD', ['Noise Gate', 'Compressor', 'Overdrive', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
+    ['Drive', ['Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
+    ['Lead', ['Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
+    ['Metal', ['Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', '6-Band EQ']],
+  ]
+
+  test('every preset loads its chain and plays without errors', async ({ page }) => {
+    const errors: string[] = []
+    page.on('pageerror', e => errors.push(e.message))
+    await page.goto('/effects')
+    await page.locator('.fx-pedalboard .fx-pedal').first().waitFor()
+    await page.getByRole('button', { name: 'Unmute' }).click()
+    await page.getByRole('button', { name: /Patches/ }).click()
+    for (const [name, chain] of PRESETS) {
+      await page.locator('.fx-preset').filter({ has: page.locator('.fx-preset-name', { hasText: new RegExp(`^${name}$`) }) }).click()
+      await expect(page.locator('.fx-pedalboard .fx-pedal h3')).toHaveText(chain)
+      await expect(page.locator('.fx-preset.active .fx-preset-name')).toHaveText(name)
+      await page.waitForTimeout(150)
+    }
+    expect(errors).toEqual([])
+  })
+
+  test('a tweaked preset saves as a new patch', async ({ page }) => {
+    await page.goto('/effects')
+    await page.evaluate(() => localStorage.removeItem('fretwiki-patches-v1'))
+    await page.getByRole('button', { name: /Patches/ }).click()
+    await page.locator('.fx-preset', { hasText: /^Blues OD/ }).click()
+    await expect(page.getByLabel('Patch name')).toHaveValue('NIXX Blues OD (mine)')
+    const knob = page.locator('.fx-pedalboard .fx-rotary').first()
+    await knob.focus()
+    await page.keyboard.press('ArrowUp')
+    await page.getByRole('button', { name: 'Save new' }).click()
+    await expect(page.locator('.fx-patch-name')).toHaveText(['NIXX Blues OD (mine)'])
+    await expect(page.locator('.fx-preset')).toHaveCount(8)
   })
 })

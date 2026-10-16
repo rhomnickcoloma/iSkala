@@ -9,6 +9,9 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     headless: true,
     screenshot: 'only-on-failure',
+    // Fake microphone so audio features (effects drawer, tuner) can run headless
+    permissions: ['microphone'],
+    launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] },
     trace: 'on-first-retry',
   },
   projects: [

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { cloudPatchStore, localPatchStore, MAX_PATCH_NAME, type Patch, type PatchRig } from '../lib/patches'
+import { FACTORY_PATCHES } from '../lib/factoryPatches'
 import { Icon } from './Icons'
 
 interface EffectsPatchesProps {
@@ -66,8 +67,29 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
     })
   }
 
+  const loadFactory = (p: Patch) => {
+    onLoad(p)
+    onActiveChange(p.id)
+    setName(`${p.name} (mine)`)
+  }
+
   return (
     <div className="fx-patches">
+      <div className="fx-presets">
+        <p className="fx-presets-title">NIXX Presets <span>Load one, tweak it, then save it as your own</span></p>
+        <ul className="fx-presets-grid">
+          {FACTORY_PATCHES.map(p => (
+            <li key={p.id}>
+              <button className={`fx-preset ${p.id === activePatchId ? 'active' : ''}`} onClick={() => loadFactory(p)} disabled={busy} title={p.description}>
+                <span className="fx-preset-name">{p.name.replace(/^NIXX /, '')}</span>
+                <span className="fx-preset-desc">{p.description}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <p className="fx-presets-title">My Patches</p>
       <form className="fx-patches-save" onSubmit={e => { e.preventDefault(); saveNew() }}>
         <input
           value={name}

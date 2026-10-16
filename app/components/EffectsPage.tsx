@@ -415,20 +415,31 @@ function createEffect(type: string, modelId?: string, id: EffectId = newId()): E
   return fx
 }
 
+const DEFAULT_INPUT_GAIN = 0.86
+const DEFAULT_MASTER_VOLUME = 0.8
+
 // Fixed ids so server and client render identical markup
 function defaultChain(): EffectInstance[] {
+  const dist = createEffect('distortion', undefined, 'default-dist')
+  dist.params = { ...dist.params, drive: 33, tone: 4600, level: 13 }
+  const amp = createEffect('amp', 'clean-twin', 'default-amp')
+  amp.params = { gain: 3, bass: 5, mid: 5, treble: 7, presence: 8, master: 2 }
+  const cab = createEffect('cab', '4x12-brit', 'default-cab')
+  cab.enabled = false
   return [
     createEffect('noise-gate', undefined, 'default-gate'),
     createEffect('compressor', undefined, 'default-comp'),
-    createEffect('distortion', undefined, 'default-dist'),
-    createEffect('amp', 'crunch-brit', 'default-amp'),
-    createEffect('cab', '4x12-brit', 'default-cab'),
+    dist,
+    amp,
+    cab,
     createEffect('delay', undefined, 'default-delay'),
     createEffect('reverb', undefined, 'default-reverb'),
   ]
 }
 
 const STORAGE_KEY = 'fretwiki-effects-v1'
+const SKIN_KEY = 'fretwiki-effects-skin'
+type Skin = 'modern' | 'classic'
 
 interface SavedRig {
   effects: EffectInstance[]
@@ -491,9 +502,60 @@ function sanitizeEffects(raw: unknown): EffectInstance[] | null {
 
 // ─── Component ───
 
-interface EffectsPageProps { onClose: () => void }
+interface EffectsPageProps {
+  onClose?: () => void
+  /** 'drawer' shows a compact chain under the fretboard; pedals open in a popup for editing */
+  variant?: 'page' | 'drawer'
+  collapsed?: boolean
+  onToggleCollapsed?: () => void
+  onOpenFullPage?: () => void
+}
 
-export default function EffectsPage({ onClose }: EffectsPageProps) {
+const VU_FLOOR_DB = -60
+const VU_FALLOFF = 0.92
+const CLIP_HOLD_MS = 1000
+
+// Peak level of a time-domain buffer mapped onto a -60..0 dBFS scale (0..1)
+function peakToVu(buf: Float32Array) {
+  let peak = 0
+  for (let i = 0; i < buf.length; i++) { const a = Math.abs(buf[i]); if (a > peak) peak = a }
+  if (peak <= 0) return { level: 0, clipped: false }
+  const db = 20 * Math.log10(peak)
+  return { level: Math.min(1, Math.max(0, (db - VU_FLOOR_DB) / -VU_FLOOR_DB)), clipped: peak >= 0.99 }
+}
+
+function VMeter({ label, level, clip }: { label: string; level: number; clip: boolean }) {
+  return (
+    <div className="fx-vmeter" role="meter" aria-label={`${label} level`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(level * 100)}>
+      <div className="fx-vmeter-bar">
+        <span className={`fx-vmeter-clip ${clip ? 'on' : ''}`} />
+        <div className="fx-vmeter-track">
+          <div className="fx-vmeter-fill" style={{ height: `${level * 100}%` }} />
+        </div>
+      </div>
+      <span className="fx-vmeter-label">{label}</span>
+    </div>
+  )
+}
+
+function knobAngle(value: number, min: number, max: number) {
+  return -135 + 270 * ((value - min) / (max - min || 1))
+}
+
+// One-line description for a compact chain block
+function fxSummary(fx: EffectInstance, def: EffectDef): string {
+  if (fx.type === 'nam' && fx.modelId === NAM_CUSTOM_ID) return fx.namName || 'Load a .nam'
+  if (fx.modelId === 'custom-ir') return fx.irName || 'Load an IR'
+  const model = def.models?.find(m => m.id === fx.modelId)
+  if (model) return model.name
+  if (def.extra && fx.extraValue) return fx.extraValue
+  const p = def.params[0]
+  if (!p) return ''
+  return `${p.label} ${p.displayFn ? p.displayFn(fx.params[p.key]) : fx.params[p.key]}${p.unit ? ` ${p.unit}` : ''}`
+}
+
+export default function EffectsPage({ onClose, variant = 'page', collapsed = false, onToggleCollapsed, onOpenFullPage }: EffectsPageProps) {
+  const isDrawer = variant === 'drawer'
   const [effects, setEffects] = useState<EffectInstance[]>(defaultChain)
 
   const [inputDevices, setInputDevices] = useState<MediaDeviceInfo[]>([])
@@ -505,13 +567,27 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
   const [sampleRate, setSampleRate] = useState(DEFAULT_SAMPLE_RATE)
   const [inputLevel, setInputLevel] = useState(0)
   const [outputLevel, setOutputLevel] = useState(0)
-  const [masterVolume, setMasterVolume] = useState(0.8)
-  const [inputGain, setInputGain] = useState(1.0)
+  const [vu, setVu] = useState({ in: 0, out: 0, inClip: false, outClip: false })
+  const [masterVolume, setMasterVolume] = useState(DEFAULT_MASTER_VOLUME)
+  const [inputGain, setInputGain] = useState(DEFAULT_INPUT_GAIN)
   const [error, setError] = useState<string | null>(null)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const [showAddPicker, setShowAddPicker] = useState(false)
   const [showPatches, setShowPatches] = useState(false)
+  const [editingId, setEditingId] = useState<EffectId | null>(null)
+  const [drawerPopup, setDrawerPopup] = useState<'add' | 'patches' | 'io' | null>(null)
+  const drawerRef = useRef<HTMLDivElement>(null)
+  const [skin, setSkinState] = useState<Skin>('classic')
+  const classic = skin === 'classic'
+  const skinClass = classic ? 'fx-skin-classic' : 'fx-skin-modern'
+  useEffect(() => {
+    try { if (localStorage.getItem(SKIN_KEY) === 'modern') setSkinState('modern') } catch {}
+  }, [])
+  const setSkin = (next: Skin) => {
+    setSkinState(next)
+    try { localStorage.setItem(SKIN_KEY, next) } catch {}
+  }
   const [activePatchId, setActivePatchId] = useState<string | null>(null)
   const [tunerOpen, setTunerOpen] = useState(false)
   const [tunerReading, setTunerReading] = useState<{ note: string; cents: number; hz: number } | null>(null)
@@ -557,8 +633,8 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
     try { effects.forEach(fx => localStorage.removeItem(IR_KEY_PREFIX + fx.id)) } catch {}
     effects.forEach(fx => { if (fx.type === 'nam') deleteFile(NAM_KEY_PREFIX + fx.id) })
     setEffects(defaultChain())
-    setMasterVolume(0.8)
-    setInputGain(1)
+    setMasterVolume(DEFAULT_MASTER_VOLUME)
+    setInputGain(DEFAULT_INPUT_GAIN)
     setActivePatchId(null)
   }
 
@@ -609,7 +685,24 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
     ro.observe(board)
     board.querySelectorAll('[data-chain-node]').forEach(n => ro.observe(n))
     return () => ro.disconnect()
-  }, [effects, computeWires])
+  }, [effects, computeWires, collapsed])
+
+  // Lets the page reserve room so the drawer never hides the fretboard or floating buttons
+  useLayoutEffect(() => {
+    const el = drawerRef.current
+    if (!isDrawer || !el) return
+    const root = document.documentElement
+    const ro = new ResizeObserver(() => root.style.setProperty('--fx-drawer-h', `${el.offsetHeight}px`))
+    ro.observe(el)
+    return () => { ro.disconnect(); root.style.removeProperty('--fx-drawer-h') }
+  }, [isDrawer])
+
+  useEffect(() => {
+    if (!editingId && !drawerPopup) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setEditingId(null); setDrawerPopup(null) } }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [editingId, drawerPopup])
 
   useEffect(() => {
     const disarm = () => setArmedId(null)
@@ -1007,13 +1100,25 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
   useEffect(() => {
     if (!isActive) return
     const inD = new Uint8Array(128); const outD = new Uint8Array(128)
-    const meter = () => {
-      if (inputAnalyserRef.current) { inputAnalyserRef.current.getByteFrequencyData(inD); setInputLevel(inD.reduce((a, b) => a + b, 0) / inD.length / 255) }
-      if (outputAnalyserRef.current) { outputAnalyserRef.current.getByteFrequencyData(outD); setOutputLevel(outD.reduce((a, b) => a + b, 0) / outD.length / 255) }
+    const inT = new Float32Array(256); const outT = new Float32Array(256)
+    const held = { in: 0, out: 0, inClipAt: -Infinity, outClipAt: -Infinity }
+    const meter = (now: number) => {
+      const inAn = inputAnalyserRef.current, outAn = outputAnalyserRef.current
+      if (inAn) {
+        inAn.getByteFrequencyData(inD); setInputLevel(inD.reduce((a, b) => a + b, 0) / inD.length / 255)
+        inAn.getFloatTimeDomainData(inT)
+        const v = peakToVu(inT); held.in = Math.max(v.level, held.in * VU_FALLOFF); if (v.clipped) held.inClipAt = now
+      }
+      if (outAn) {
+        outAn.getByteFrequencyData(outD); setOutputLevel(outD.reduce((a, b) => a + b, 0) / outD.length / 255)
+        outAn.getFloatTimeDomainData(outT)
+        const v = peakToVu(outT); held.out = Math.max(v.level, held.out * VU_FALLOFF); if (v.clipped) held.outClipAt = now
+      }
+      setVu({ in: held.in, out: held.out, inClip: now - held.inClipAt < CLIP_HOLD_MS, outClip: now - held.outClipAt < CLIP_HOLD_MS })
       animRef.current = requestAnimationFrame(meter)
     }
     animRef.current = requestAnimationFrame(meter)
-    return () => cancelAnimationFrame(animRef.current)
+    return () => { cancelAnimationFrame(animRef.current); setVu({ in: 0, out: 0, inClip: false, outClip: false }) }
   }, [isActive])
 
   // Mute only silences the output; the graph keeps running so unmuting is instant (no mic prompt or model reload)
@@ -1086,7 +1191,12 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
     deleteFile(NAM_KEY_PREFIX + id)
     setEffects(prev => prev.filter(fx => fx.id !== id))
   }
-  const addEffect = (type: string) => { setEffects(prev => [...prev, createEffect(type)]); setShowAddPicker(false) }
+  const addEffect = (type: string) => {
+    const fx = createEffect(type)
+    setEffects(prev => [...prev, fx])
+    setShowAddPicker(false)
+    if (isDrawer) { setDrawerPopup(null); setEditingId(fx.id) }
+  }
   const moveEffect = (from: number, to: number) => { setEffects(prev => { const n = [...prev]; const [m] = n.splice(from, 1); n.splice(to, 0, m); return n }) }
 
   const onDragStart = (idx: number) => { setDragIdx(idx) }
@@ -1094,12 +1204,371 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
   const onDrop = (idx: number) => { if (dragIdx !== null && dragIdx !== idx) moveEffect(dragIdx, idx); setDragIdx(null); setDragOverIdx(null) }
   const onDragEnd = () => { setDragIdx(null); setDragOverIdx(null); setArmedId(null) }
 
-  const handleClose = () => { stopAudio(); onClose() }
+  const handleClose = () => { stopAudio(); onClose?.() }
   const meterColor = (l: number) => l > 0.85 ? '#e74c3c' : l > 0.6 ? '#f39c12' : '#2ecc71'
+
+  const renderIoBar = () => (
+    <div className="fx-io-bar">
+      <div className="fx-io-section">
+        <div className="fx-io-device">
+          <label>Input</label>
+          <select value={selectedInput} onChange={e => setSelectedInput(e.target.value)} className="fx-device-select" aria-label="Input device">
+            <option value="">Default</option>
+            {inputDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Input ${d.deviceId.slice(0, 8)}`}</option>)}
+          </select>
+        </div>
+        <div className="fx-meter-group">
+          <div className="fx-meter"><div className="fx-meter-fill" style={{ width: `${inputLevel * 100}%`, background: meterColor(inputLevel) }} /></div>
+          <input type="range" min="0" max="200" value={inputGain * 100} onChange={e => setInputGain(Number(e.target.value) / 100)} className="fx-mini-slider" aria-label="Input gain" />
+          <span className="fx-meter-label">{Math.round(inputGain * 100)}%</span>
+        </div>
+      </div>
+      <div className="fx-io-center">
+      <button
+        className={`fx-power-btn ${live ? 'active' : 'muted'}`}
+        onClick={toggleMute}
+        aria-pressed={!live}
+        title={live ? 'Mute output' : 'Unmute and play through the rig'}
+      >
+        <Icon name={live ? 'volume-on' : 'volume-off'} className="fx-power-icon" />
+        <span>{live ? 'MUTE' : 'UNMUTE'}</span>
+      </button>
+      <button
+        className={`fx-tuner-btn ${tunerOpen ? 'active' : ''}`}
+        onClick={toggleTuner}
+        aria-pressed={tunerOpen}
+        title={tunerOpen ? 'Close tuner' : 'Tune up (output is silenced while tuning)'}
+      >
+        <Icon name="tuning-fork" className="fx-power-icon" />
+        <span>TUNER</span>
+      </button>
+      </div>
+      <div className="fx-io-section">
+        <div className="fx-io-device">
+          <label>Output</label>
+          <select value={selectedOutput} onChange={e => setSelectedOutput(e.target.value)} className="fx-device-select" aria-label="Output device">
+            <option value="">Default</option>
+            {outputDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Output ${d.deviceId.slice(0, 8)}`}</option>)}
+          </select>
+          <Icon name="settings" size={14} className="fx-rate-icon" />
+          <select value={sampleRate} onChange={e => setSampleRate(Number(e.target.value))} className="fx-device-select fx-rate-select" title="Sample rate">
+            {SAMPLE_RATES.map(r => <option key={r} value={r}>{(r / 1000).toFixed(r % 1000 ? 1 : 0)} kHz</option>)}
+          </select>
+        </div>
+        <div className="fx-meter-group">
+          <div className="fx-meter"><div className="fx-meter-fill" style={{ width: `${outputLevel * 100}%`, background: meterColor(outputLevel) }} /></div>
+          <input type="range" min="0" max="100" value={masterVolume * 100} onChange={e => setMasterVolume(Number(e.target.value) / 100)} className="fx-mini-slider" aria-label="Output volume" />
+          <span className="fx-meter-label">{Math.round(masterVolume * 100)}%</span>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderSkinSwitch = () => (
+    <div className="fx-skin-switch" role="radiogroup" aria-label="Pedal style">
+      {(['modern', 'classic'] as const).map(s => (
+        <button key={s} role="radio" aria-checked={skin === s} className={skin === s ? 'active' : ''} onClick={() => setSkin(s)}
+          title={s === 'modern' ? 'Modern processor blocks' : 'Classic stompbox pedals'}>
+          {s === 'modern' ? 'Modern' : 'Classic'}
+        </button>
+      ))}
+    </div>
+  )
+
+  // Classic skin: name plate, status LED and a footswitch that bypasses, like a real stompbox
+  const renderStompFooter = (fx: EffectInstance, def: EffectDef) => classic && (
+    <div className="fx-stomp-footer">
+      <div className="fx-stomp-plate">
+        <span className="fx-stomp-name">{def.label}</span>
+        {def.models && <span className="fx-stomp-model">{fxSummary(fx, def)}</span>}
+      </div>
+      <span className="fx-stomp-led" aria-hidden="true" />
+      <button className="fx-stomp" onClick={() => toggleEffect(fx.id)} aria-label={`Footswitch: ${fx.enabled ? 'bypass' : 'enable'} ${def.label}`} aria-pressed={fx.enabled} />
+    </div>
+  )
+
+  const renderAudioSettings = () => (
+    <div className="fx-settings">
+      <label className="fx-settings-label" htmlFor="fx-set-input">Input</label>
+      <select id="fx-set-input" value={selectedInput} onChange={e => setSelectedInput(e.target.value)} className="fx-device-select">
+        <option value="">Default</option>
+        {inputDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Input ${d.deviceId.slice(0, 8)}`}</option>)}
+      </select>
+      <div className="fx-settings-level">
+        <div className="fx-meter"><div className="fx-meter-fill" style={{ width: `${inputLevel * 100}%`, background: meterColor(inputLevel) }} /></div>
+        <input type="range" min="0" max="200" value={inputGain * 100} onChange={e => setInputGain(Number(e.target.value) / 100)} className="fx-mini-slider" aria-label="Input gain" />
+        <span className="fx-meter-label">{Math.round(inputGain * 100)}%</span>
+      </div>
+
+      <label className="fx-settings-label" htmlFor="fx-set-output">Output</label>
+      <select id="fx-set-output" value={selectedOutput} onChange={e => setSelectedOutput(e.target.value)} className="fx-device-select">
+        <option value="">Default</option>
+        {outputDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Output ${d.deviceId.slice(0, 8)}`}</option>)}
+      </select>
+      <div className="fx-settings-level">
+        <div className="fx-meter"><div className="fx-meter-fill" style={{ width: `${outputLevel * 100}%`, background: meterColor(outputLevel) }} /></div>
+        <input type="range" min="0" max="100" value={masterVolume * 100} onChange={e => setMasterVolume(Number(e.target.value) / 100)} className="fx-mini-slider" aria-label="Output volume" />
+        <span className="fx-meter-label">{Math.round(masterVolume * 100)}%</span>
+      </div>
+
+      <label className="fx-settings-label" htmlFor="fx-set-rate">Sample rate</label>
+      <select id="fx-set-rate" value={sampleRate} onChange={e => setSampleRate(Number(e.target.value))} className="fx-device-select fx-settings-rate">
+        {SAMPLE_RATES.map(r => <option key={r} value={r}>{(r / 1000).toFixed(r % 1000 ? 1 : 0)} kHz</option>)}
+      </select>
+      <p className="fx-settings-hint">Changing a device or rate restarts audio.</p>
+
+      <span className="fx-settings-label">Pedal style</span>
+      {renderSkinSwitch()}
+    </div>
+  )
+
+  const renderTuner = () => (
+    <>
+      {tunerOpen && (() => {
+        const cents = tunerReading?.cents ?? 0
+        const inTune = tunerReading !== null && Math.abs(cents) <= 5
+        const status = !tunerReading ? 'Play a string' : inTune ? 'In tune' : cents < 0 ? 'Tune up' : 'Tune down'
+        return (
+          <div className={`fx-tuner ${inTune ? 'in-tune' : ''}`}>
+            <div className="fx-tuner-note">
+              {tunerReading ? tunerReading.note.replace(/\d/, '') : '–'}
+              <sub>{tunerReading?.note.match(/\d/)?.[0]}</sub>
+            </div>
+            <div className="fx-tuner-meter">
+              <div className="fx-tuner-scale">
+                {[-50, -25, 0, 25, 50].map(c => <span key={c} style={{ left: `${50 + c}%` }} className={c === 0 ? 'center' : ''} />)}
+                {tunerReading && <div className="fx-tuner-needle" style={{ left: `${50 + Math.max(-50, Math.min(50, cents))}%` }} />}
+              </div>
+              <div className="fx-tuner-labels"><span>♭ −50</span><span>0</span><span>+50 ♯</span></div>
+            </div>
+            <div className="fx-tuner-info">
+              <span className="fx-tuner-status">{status}</span>
+              <span className="fx-tuner-detail">
+                {tunerReading ? `${tunerReading.hz.toFixed(1)} Hz · ${cents > 0 ? '+' : ''}${cents}¢` : isActive ? 'Listening…' : 'Starting input…'}
+              </span>
+              <span className="fx-tuner-detail">Output silenced while tuning</span>
+            </div>
+          </div>
+        )
+      })()}
+    </>
+  )
+
+  const renderAddPicker = () => (
+    <div className="fx-add-picker">
+      {Object.values(EFFECT_CATALOG).map(def => (
+        <button key={def.type} className="fx-add-option" onClick={() => addEffect(def.type)} style={{ borderColor: def.color + '60' }}>
+          <Icon name={def.icon} className="fx-add-option-icon" /><span>{def.label}</span>
+        </button>
+      ))}
+    </div>
+  )
+
+  const renderChainSvg = () => (
+    <svg className="fx-chain-svg" aria-hidden="true">
+      <defs>
+        {wires.map(w => (
+          <linearGradient key={w.id} id={`fx-wire-${w.id}`} gradientUnits="userSpaceOnUse" x1={w.x1} y1={w.y1} x2={w.x2} y2={w.y2}>
+            <stop offset="0" stopColor={w.from} />
+            <stop offset="1" stopColor={w.to} />
+          </linearGradient>
+        ))}
+      </defs>
+      {wires.map(w => (
+        <path key={w.id} d={w.d} className="fx-chain-cable" stroke={`url(#fx-wire-${w.id})`} />
+      ))}
+      {wires.map(w => (
+        <circle key={w.id} cx={w.x2} cy={w.y2} r={3.5} fill={w.to} className="fx-chain-dot" />
+      ))}
+    </svg>
+  )
+
+  const renderPedalControls = (fx: EffectInstance, def: EffectDef) => (
+    <>
+      {/* Model selector for amp/cab */}
+      {def.models && (
+        <div className="fx-model-selector">
+          <select value={fx.modelId || ''} onChange={e => updateModel(fx.id, e.target.value)} className="fx-model-select" aria-label={`${def.label} model`}>
+            {[...new Set(def.models.map(m => m.group))].map(group => (
+              <optgroup key={group || 'models'} label={group || 'Models'}>
+                {def.models!.filter(m => m.group === group).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </optgroup>
+            ))}
+          </select>
+          <span className="fx-model-char">{def.models.find(m => m.id === fx.modelId)?.character}</span>
+          {fx.modelId === 'custom-ir' && (
+            <label className="fx-ir-load" title={fx.irName || 'Load an impulse response .wav file'}>
+              <input type="file" accept=".wav,audio/wav,audio/x-wav" hidden
+                onChange={e => { const f = e.target.files?.[0]; if (f) loadIrFile(fx.id, f); e.target.value = '' }} />
+              {fx.irName ? <><Icon name="check" size="1em" className="inline-icon" />{fx.irName}</> : 'Load IR (.wav)'}
+            </label>
+          )}
+        </div>
+      )}
+
+      {fx.type === 'nam' && (
+        <div className="fx-model-selector">
+          {fx.modelId === NAM_CUSTOM_ID && (
+            <label className="fx-ir-load" title={fx.namName || 'Load a Neural Amp Modeler .nam file'}>
+              <input type="file" accept=".nam,application/json" hidden
+                onChange={e => { const f = e.target.files?.[0]; if (f) loadNamFile(fx.id, f); e.target.value = '' }} />
+              {fx.namName ? <><Icon name="check" size="1em" className="inline-icon" />{fx.namName}</> : 'Load model (.nam)'}
+            </label>
+          )}
+          {namLoading.has(fx.id) && <span className="fx-model-char">Loading model…</span>}
+        </div>
+      )}
+
+      {def.extra && !(def.isCab && (fx.modelId === 'direct' || fx.modelId === 'custom-ir' || CAB_MODELS.some(c => c.id === fx.modelId && c.irFile))) && (
+        <div className="fx-type-btns">
+          {def.extra.options.map(opt => (
+            <button key={opt} className={`fx-type-btn ${fx.extraValue === opt ? 'active' : ''}`} onClick={() => updateExtra(fx.id, opt)}>{opt}</button>
+          ))}
+        </div>
+      )}
+
+      {def.params.length > 0 && (
+        <div className="fx-knob-row">
+          {def.params.map(p => (
+            <div key={p.key} className="fx-knob-group">
+              <label>{p.label}</label>
+              <RotaryKnob value={fx.params[p.key]} min={p.min} max={p.max} step={p.step}
+                onChange={v => updateParam(fx.id, p.key, v)} color={def.color}
+                label={`${def.label} ${p.label}`}
+                valueText={`${p.displayFn ? p.displayFn(fx.params[p.key]) : fx.params[p.key]}${p.unit ? ` ${p.unit}` : ''}`} />
+              <span className="fx-knob-val">{p.displayFn ? p.displayFn(fx.params[p.key]) : fx.params[p.key]}{p.unit && ` ${p.unit}`}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+
+  if (isDrawer) {
+    const editing = effects.find(fx => fx.id === editingId)
+    const editingDef = editing ? EFFECT_CATALOG[editing.type] : undefined
+    return (
+      <>
+        <div className={`fx-drawer ${skinClass} ${collapsed ? 'collapsed' : ''}`} ref={drawerRef} role="region" aria-label="Effects drawer">
+          <div className="fx-drawer-bar">
+            <span className="fx-drawer-title"><Icon name="sliders-horizontal" size={15} /><span>Effects</span></span>
+            <button className={`fx-drawer-power ${live ? 'active' : ''}`} onClick={toggleMute} aria-pressed={!live} title={live ? 'Mute output' : 'Unmute and play through the rig'}>
+              <Icon name={live ? 'volume-on' : 'volume-off'} size={14} />
+              <span>{live ? 'Mute' : 'Unmute'}</span>
+            </button>
+            <button className={`fx-drawer-btn ${tunerOpen ? 'active' : ''}`} onClick={toggleTuner} aria-pressed={tunerOpen} title="Tuner (silences output)">
+              <Icon name="tuning-fork" size={14} /><span className="fx-drawer-btn-label">Tuner</span>
+            </button>
+            <div className="fx-vmeters" title="Input and output peak level (-60 to 0 dB)">
+              <VMeter label="IN" level={vu.in} clip={vu.inClip} />
+              <VMeter label="OUT" level={vu.out} clip={vu.outClip} />
+            </div>
+            <input type="range" min="0" max="100" value={masterVolume * 100} onChange={e => setMasterVolume(Number(e.target.value) / 100)} className="fx-mini-slider fx-drawer-volume" aria-label="Output volume" />
+            <div className="fx-drawer-actions">
+              {renderSkinSwitch()}
+              <button className="fx-drawer-btn" onClick={() => setDrawerPopup('patches')} title="Patches"><Icon name="save" size={14} /><span className="fx-drawer-btn-label">Patches</span></button>
+              <button className="fx-drawer-btn" onClick={() => setDrawerPopup('io')} title="Input, output and sample rate" aria-label="Audio settings"><Icon name="settings" size={14} /></button>
+              <button className="fx-drawer-btn" onClick={onOpenFullPage} title="Open the full effects page" aria-label="Open full effects page"><Icon name="maximize" size={14} /></button>
+              <button className="fx-drawer-btn" onClick={onToggleCollapsed} aria-expanded={!collapsed} aria-label={collapsed ? 'Expand effects drawer' : 'Collapse effects drawer'} title={collapsed ? 'Show chain' : 'Hide chain (keeps playing)'}>
+                <Icon name={collapsed ? 'chevron-up' : 'chevron-down'} size={14} />
+              </button>
+              {isActive && (
+                <button className="fx-drawer-btn" onClick={stopAudio} aria-label="Turn off audio" title="Turn off audio and release the microphone"><Icon name="power" size={14} /></button>
+              )}
+            </div>
+          </div>
+
+          {error && <p className="fx-drawer-error"><Icon name="alert" size="1em" className="inline-icon" />{error}</p>}
+
+          {renderTuner()}
+
+          {!collapsed && (
+            <>
+              <div className="fx-drawer-chain" ref={boardRef}>
+                {renderChainSvg()}
+                <div className="fx-chain-endpoint" data-chain-node data-chain-id="in" data-color="#2ecc71"><div className="fx-chain-jack">IN</div></div>
+                {effects.map((fx, idx) => {
+                  const def = EFFECT_CATALOG[fx.type]
+                  if (!def) return null
+                  return (
+                    <div
+                      key={fx.id}
+                      data-chain-node
+                      data-chain-id={fx.id}
+                      data-color={fx.enabled ? def.color : '#444'}
+                      data-type={fx.type}
+                      className={`fx-block ${fx.enabled ? 'on' : 'off'} ${dragIdx === idx ? 'dragging' : ''} ${dragOverIdx === idx && dragIdx !== idx ? 'drag-over' : ''}`}
+                      style={{ '--pedal-color': def.color } as React.CSSProperties}
+                      draggable
+                      onDragStart={() => onDragStart(idx)} onDragOver={e => onDragOver(e, idx)} onDrop={() => onDrop(idx)} onDragEnd={onDragEnd}
+                    >
+                      <button className="fx-block-led" onClick={() => toggleEffect(fx.id)} aria-label={`${fx.enabled ? 'Bypass' : 'Enable'} ${def.label}`} aria-pressed={fx.enabled}><span className="fx-led" /></button>
+                      <button className="fx-block-main" onClick={() => setEditingId(fx.id)} aria-label={`Edit ${def.label}`}>
+                        {classic ? (
+                          <span className="fx-mini-knobs" aria-hidden="true">
+                            {def.params.slice(0, 3).map(p => (
+                              <span key={p.key} className="fx-mini-knob" style={{ '--knob-angle': `${knobAngle(fx.params[p.key], p.min, p.max)}deg` } as React.CSSProperties} />
+                            ))}
+                          </span>
+                        ) : (
+                          <span className="fx-block-icon"><Icon name={def.icon} size={22} /></span>
+                        )}
+                        <span className="fx-block-name">{def.label}</span>
+                        <span className="fx-block-sub">{fxSummary(fx, def)}</span>
+                      </button>
+                    </div>
+                  )
+                })}
+                <div className="fx-chain-endpoint" data-chain-node data-chain-id="out" data-color="#2ecc71"><div className="fx-chain-jack out">OUT</div></div>
+                <button className="fx-block-add" onClick={() => setDrawerPopup('add')} aria-label="Add effect" title="Add effect">+</button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {editing && editingDef && (
+          <div className={`fx-popup-backdrop docked ${skinClass}`} onClick={() => setEditingId(null)}>
+            <div
+              data-type={editing.type}
+              className={`fx-popup fx-pedal ${editing.enabled ? 'on' : 'off'}`}
+              style={{ '--pedal-color': editingDef.color } as React.CSSProperties}
+              role="dialog" aria-modal="true" aria-label={`${editingDef.label} settings`}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="fx-pedal-top">
+                <button className="fx-pedal-switch" onClick={() => toggleEffect(editing.id)} aria-label={`${editing.enabled ? 'Bypass' : 'Enable'} ${editingDef.label}`} aria-pressed={editing.enabled}><span className="fx-led" /></button>
+                <h3><Icon name={editingDef.icon} size={14} />{editingDef.label}</h3>
+                <button className="fx-popup-remove" onClick={() => { removeEffect(editing.id); setEditingId(null) }} title="Remove from chain" aria-label={`Remove ${editingDef.label}`}><Icon name="trash" size={13} /></button>
+                <button className="fx-popup-close" onClick={() => setEditingId(null)} aria-label="Close"><Icon name="x" size={14} /></button>
+              </div>
+              {renderPedalControls(editing, editingDef)}
+              {renderStompFooter(editing, editingDef)}
+            </div>
+          </div>
+        )}
+
+        {drawerPopup && (
+          <div className="fx-popup-backdrop" onClick={() => setDrawerPopup(null)}>
+            <div className="fx-popup fx-popup-panel" role="dialog" aria-modal="true" aria-label={drawerPopup === 'add' ? 'Add effect' : drawerPopup === 'patches' ? 'Patches' : 'Audio settings'} onClick={e => e.stopPropagation()}>
+              <div className="fx-popup-head">
+                <h3>{drawerPopup === 'add' ? 'Add effect' : drawerPopup === 'patches' ? 'Patches' : 'Audio settings'}</h3>
+                <button className="fx-popup-close" onClick={() => setDrawerPopup(null)} aria-label="Close"><Icon name="x" size={14} /></button>
+              </div>
+              {drawerPopup === 'add' && renderAddPicker()}
+              {drawerPopup === 'patches' && (
+                <EffectsPatches currentRig={{ effects, masterVolume, inputGain }} activePatchId={activePatchId} onActiveChange={setActivePatchId} onLoad={loadPatch} />
+              )}
+              {drawerPopup === 'io' && renderAudioSettings()}
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
 
   return (
     <div className="fx-overlay">
-      <div className="fx-modal">
+      <div className={`fx-modal ${skinClass}`}>
         <div className="fx-header">
           <div className="fx-header-left">
             <h1>Guitar Effects</h1>
@@ -1116,60 +1585,7 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
         {error && <div className="fx-error"><p><Icon name="alert" size="1em" className="inline-icon" />{error}</p><p className="fx-error-hint">Check microphone access and audio input device.</p></div>}
 
         {/* I/O Bar */}
-        <div className="fx-io-bar">
-          <div className="fx-io-section">
-            <div className="fx-io-device">
-              <label>Input</label>
-              <select value={selectedInput} onChange={e => setSelectedInput(e.target.value)} className="fx-device-select" aria-label="Input device">
-                <option value="">Default</option>
-                {inputDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Input ${d.deviceId.slice(0, 8)}`}</option>)}
-              </select>
-            </div>
-            <div className="fx-meter-group">
-              <div className="fx-meter"><div className="fx-meter-fill" style={{ width: `${inputLevel * 100}%`, background: meterColor(inputLevel) }} /></div>
-              <input type="range" min="0" max="200" value={inputGain * 100} onChange={e => setInputGain(Number(e.target.value) / 100)} className="fx-mini-slider" aria-label="Input gain" />
-              <span className="fx-meter-label">{Math.round(inputGain * 100)}%</span>
-            </div>
-          </div>
-          <div className="fx-io-center">
-          <button
-            className={`fx-power-btn ${live ? 'active' : 'muted'}`}
-            onClick={toggleMute}
-            aria-pressed={!live}
-            title={live ? 'Mute output' : 'Unmute and play through the rig'}
-          >
-            <Icon name={live ? 'volume-on' : 'volume-off'} className="fx-power-icon" />
-            <span>{live ? 'MUTE' : 'UNMUTE'}</span>
-          </button>
-          <button
-            className={`fx-tuner-btn ${tunerOpen ? 'active' : ''}`}
-            onClick={toggleTuner}
-            aria-pressed={tunerOpen}
-            title={tunerOpen ? 'Close tuner' : 'Tune up (output is silenced while tuning)'}
-          >
-            <Icon name="tuning-fork" className="fx-power-icon" />
-            <span>TUNER</span>
-          </button>
-          </div>
-          <div className="fx-io-section">
-            <div className="fx-io-device">
-              <label>Output</label>
-              <select value={selectedOutput} onChange={e => setSelectedOutput(e.target.value)} className="fx-device-select" aria-label="Output device">
-                <option value="">Default</option>
-                {outputDevices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Output ${d.deviceId.slice(0, 8)}`}</option>)}
-              </select>
-              <Icon name="settings" size={14} className="fx-rate-icon" />
-              <select value={sampleRate} onChange={e => setSampleRate(Number(e.target.value))} className="fx-device-select fx-rate-select" title="Sample rate">
-                {SAMPLE_RATES.map(r => <option key={r} value={r}>{(r / 1000).toFixed(r % 1000 ? 1 : 0)} kHz</option>)}
-              </select>
-            </div>
-            <div className="fx-meter-group">
-              <div className="fx-meter"><div className="fx-meter-fill" style={{ width: `${outputLevel * 100}%`, background: meterColor(outputLevel) }} /></div>
-              <input type="range" min="0" max="100" value={masterVolume * 100} onChange={e => setMasterVolume(Number(e.target.value) / 100)} className="fx-mini-slider" aria-label="Output volume" />
-              <span className="fx-meter-label">{Math.round(masterVolume * 100)}%</span>
-            </div>
-          </div>
-        </div>
+        {renderIoBar()}
 
         {!isActive && !tunerOpen && !error && (
           <div className="fx-start-hint">
@@ -1178,38 +1594,13 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
           </div>
         )}
 
-        {tunerOpen && (() => {
-          const cents = tunerReading?.cents ?? 0
-          const inTune = tunerReading !== null && Math.abs(cents) <= 5
-          const status = !tunerReading ? 'Play a string' : inTune ? 'In tune' : cents < 0 ? 'Tune up' : 'Tune down'
-          return (
-            <div className={`fx-tuner ${inTune ? 'in-tune' : ''}`}>
-              <div className="fx-tuner-note">
-                {tunerReading ? tunerReading.note.replace(/\d/, '') : '–'}
-                <sub>{tunerReading?.note.match(/\d/)?.[0]}</sub>
-              </div>
-              <div className="fx-tuner-meter">
-                <div className="fx-tuner-scale">
-                  {[-50, -25, 0, 25, 50].map(c => <span key={c} style={{ left: `${50 + c}%` }} className={c === 0 ? 'center' : ''} />)}
-                  {tunerReading && <div className="fx-tuner-needle" style={{ left: `${50 + Math.max(-50, Math.min(50, cents))}%` }} />}
-                </div>
-                <div className="fx-tuner-labels"><span>♭ −50</span><span>0</span><span>+50 ♯</span></div>
-              </div>
-              <div className="fx-tuner-info">
-                <span className="fx-tuner-status">{status}</span>
-                <span className="fx-tuner-detail">
-                  {tunerReading ? `${tunerReading.hz.toFixed(1)} Hz · ${cents > 0 ? '+' : ''}${cents}¢` : isActive ? 'Listening…' : 'Starting input…'}
-                </span>
-                <span className="fx-tuner-detail">Output silenced while tuning</span>
-              </div>
-            </div>
-          )
-        })()}
+        {renderTuner()}
 
         {/* Chain Header */}
         <div className="fx-section-title">
           <span>Signal Chain</span>
           <div className="fx-section-actions">
+            {renderSkinSwitch()}
             <button
               className={`fx-patches-toggle ${showPatches ? 'active' : ''}`}
               onClick={() => { setShowPatches(!showPatches); setShowAddPicker(false) }}
@@ -1231,34 +1622,11 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
           />
         )}
 
-        {showAddPicker && (
-          <div className="fx-add-picker">
-            {Object.values(EFFECT_CATALOG).map(def => (
-              <button key={def.type} className="fx-add-option" onClick={() => addEffect(def.type)} style={{ borderColor: def.color + '60' }}>
-                <Icon name={def.icon} className="fx-add-option-icon" /><span>{def.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        {showAddPicker && renderAddPicker()}
 
         {/* Pedalboard Chain */}
         <div className="fx-pedalboard" ref={boardRef}>
-          <svg className="fx-chain-svg" aria-hidden="true">
-            <defs>
-              {wires.map(w => (
-                <linearGradient key={w.id} id={`fx-wire-${w.id}`} gradientUnits="userSpaceOnUse" x1={w.x1} y1={w.y1} x2={w.x2} y2={w.y2}>
-                  <stop offset="0" stopColor={w.from} />
-                  <stop offset="1" stopColor={w.to} />
-                </linearGradient>
-              ))}
-            </defs>
-            {wires.map(w => (
-              <path key={w.id} d={w.d} className="fx-chain-cable" stroke={`url(#fx-wire-${w.id})`} />
-            ))}
-            {wires.map(w => (
-              <circle key={w.id} cx={w.x2} cy={w.y2} r={3.5} fill={w.to} className="fx-chain-dot" />
-            ))}
-          </svg>
+          {renderChainSvg()}
 
           <div className="fx-chain-endpoint" data-chain-node data-chain-id="in" data-color="#2ecc71"><div className="fx-chain-jack">IN</div></div>
 
@@ -1271,6 +1639,7 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
                   data-chain-node
                   data-chain-id={fx.id}
                   data-color={fx.enabled ? def.color : '#444'}
+                  data-type={fx.type}
                   className={`fx-pedal ${fx.enabled ? 'on' : 'off'} ${dragIdx === idx ? 'dragging' : ''} ${dragOverIdx === idx && dragIdx !== idx ? 'drag-over' : ''}`}
                   style={{ '--pedal-color': def.color } as React.CSSProperties}
                   draggable={armedId === fx.id}
@@ -1286,62 +1655,8 @@ export default function EffectsPage({ onClose }: EffectsPageProps) {
                     <button className="fx-pedal-remove" onClick={() => removeEffect(fx.id)} title="Remove"><Icon name="x" size={12} /></button>
                   </div>
 
-                  {/* Model selector for amp/cab */}
-                  {def.models && (
-                    <div className="fx-model-selector">
-                      <select value={fx.modelId || ''} onChange={e => updateModel(fx.id, e.target.value)} className="fx-model-select" aria-label={`${def.label} model`}>
-                        {[...new Set(def.models.map(m => m.group))].map(group => (
-                          <optgroup key={group || 'models'} label={group || 'Models'}>
-                            {def.models!.filter(m => m.group === group).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                          </optgroup>
-                        ))}
-                      </select>
-                      <span className="fx-model-char">{def.models.find(m => m.id === fx.modelId)?.character}</span>
-                      {fx.modelId === 'custom-ir' && (
-                        <label className="fx-ir-load" title={fx.irName || 'Load an impulse response .wav file'}>
-                          <input type="file" accept=".wav,audio/wav,audio/x-wav" hidden
-                            onChange={e => { const f = e.target.files?.[0]; if (f) loadIrFile(fx.id, f); e.target.value = '' }} />
-                          {fx.irName ? <><Icon name="check" size="1em" className="inline-icon" />{fx.irName}</> : 'Load IR (.wav)'}
-                        </label>
-                      )}
-                    </div>
-                  )}
-
-                  {fx.type === 'nam' && (
-                    <div className="fx-model-selector">
-                      {fx.modelId === NAM_CUSTOM_ID && (
-                        <label className="fx-ir-load" title={fx.namName || 'Load a Neural Amp Modeler .nam file'}>
-                          <input type="file" accept=".nam,application/json" hidden
-                            onChange={e => { const f = e.target.files?.[0]; if (f) loadNamFile(fx.id, f); e.target.value = '' }} />
-                          {fx.namName ? <><Icon name="check" size="1em" className="inline-icon" />{fx.namName}</> : 'Load model (.nam)'}
-                        </label>
-                      )}
-                      {namLoading.has(fx.id) && <span className="fx-model-char">Loading model…</span>}
-                    </div>
-                  )}
-
-                  {def.extra && !(def.isCab && (fx.modelId === 'direct' || fx.modelId === 'custom-ir' || CAB_MODELS.some(c => c.id === fx.modelId && c.irFile))) && (
-                    <div className="fx-type-btns">
-                      {def.extra.options.map(opt => (
-                        <button key={opt} className={`fx-type-btn ${fx.extraValue === opt ? 'active' : ''}`} onClick={() => updateExtra(fx.id, opt)}>{opt}</button>
-                      ))}
-                    </div>
-                  )}
-
-                  {def.params.length > 0 && (
-                    <div className="fx-knob-row">
-                      {def.params.map(p => (
-                        <div key={p.key} className="fx-knob-group">
-                          <label>{p.label}</label>
-                          <RotaryKnob value={fx.params[p.key]} min={p.min} max={p.max} step={p.step}
-                            onChange={v => updateParam(fx.id, p.key, v)} color={def.color}
-                            label={`${def.label} ${p.label}`}
-                            valueText={`${p.displayFn ? p.displayFn(fx.params[p.key]) : fx.params[p.key]}${p.unit ? ` ${p.unit}` : ''}`} />
-                          <span className="fx-knob-val">{p.displayFn ? p.displayFn(fx.params[p.key]) : fx.params[p.key]}{p.unit && ` ${p.unit}`}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {renderPedalControls(fx, def)}
+                  {renderStompFooter(fx, def)}
                 </div>
             )
           })}
