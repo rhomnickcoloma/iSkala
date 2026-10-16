@@ -699,3 +699,37 @@ test.describe('NIXX presets', () => {
     await expect(page.locator('.fx-preset')).toHaveCount(8)
   })
 })
+
+test.describe('Current patch name', () => {
+  test('shows the loaded patch, marks edits, survives refresh, and defaults are 75%', async ({ page }) => {
+    await page.goto('/effects')
+    await page.evaluate(() => { localStorage.clear() })
+    await page.reload()
+    await page.locator('.fx-pedalboard .fx-pedal').first().waitFor()
+    const label = page.locator('.fx-section-title .fx-patch-current')
+    await expect(label).toHaveText('Unsaved rig')
+    await expect(page.locator('.fx-meter-label').first()).toHaveText('75%')
+    await expect(page.locator('.fx-meter-label').nth(1)).toHaveText('75%')
+
+    await label.click()
+    await page.locator('.fx-preset').filter({ has: page.locator('.fx-preset-name', { hasText: /^Drive$/ }) }).click()
+    await expect(label).toHaveText('NIXX Drive')
+    await expect(label.locator('.fx-patch-edited')).toHaveCount(0)
+
+    const knob = page.locator('.fx-pedalboard .fx-rotary').first()
+    await knob.focus()
+    await page.keyboard.press('ArrowUp')
+    await expect(label.locator('.fx-patch-edited')).toHaveCount(1)
+
+    await page.getByRole('button', { name: 'Save new' }).click()
+    await expect(label).toHaveText('NIXX Drive (mine)')
+    await expect(label.locator('.fx-patch-edited')).toHaveCount(0)
+
+    await page.reload()
+    await expect(page.locator('.fx-section-title .fx-patch-current')).toHaveText('NIXX Drive (mine)')
+
+    await setInstrumentCookie(page)
+    await page.goto('/guitar')
+    await expect(page.locator('.fx-drawer .fx-patch-current')).toHaveText('NIXX Drive (mine)')
+  })
+})

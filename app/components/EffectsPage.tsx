@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react'
 import { getFile, setFile, deleteFile } from '../lib/fileStore'
 import { Icon, type IconName } from './Icons'
 import { autoCorrelate, getClosestNote } from '../lib/pitch'
@@ -415,8 +415,8 @@ function createEffect(type: string, modelId?: string, id: EffectId = newId()): E
   return fx
 }
 
-const DEFAULT_INPUT_GAIN = 0.86
-const DEFAULT_MASTER_VOLUME = 0.8
+const DEFAULT_INPUT_GAIN = 0.75
+const DEFAULT_MASTER_VOLUME = 0.75
 
 // Fixed ids so server and client render identical markup
 function defaultChain(): EffectInstance[] {
@@ -439,6 +439,11 @@ function defaultChain(): EffectInstance[] {
 
 const STORAGE_KEY = 'fretwiki-effects-v1'
 const SKIN_KEY = 'fretwiki-effects-skin'
+const ACTIVE_PATCH_KEY = 'fretwiki-effects-active-patch'
+
+// Snapshot of the rig when a patch was loaded or saved; differs once the user tweaks something
+interface ActivePatch { id: string; name: string; snapshot: string }
+const rigSnapshot = (effects: unknown, masterVolume: number, inputGain: number) => JSON.stringify({ effects, masterVolume, inputGain })
 type Skin = 'modern' | 'classic'
 
 interface SavedRig {
@@ -588,7 +593,8 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
     setSkinState(next)
     try { localStorage.setItem(SKIN_KEY, next) } catch {}
   }
-  const [activePatchId, setActivePatchId] = useState<string | null>(null)
+  const [activePatch, setActivePatch] = useState<ActivePatch | null>(null)
+  const activePatchId = activePatch?.id ?? null
   const [tunerOpen, setTunerOpen] = useState(false)
   const [tunerReading, setTunerReading] = useState<{ note: string; cents: number; hz: number } | null>(null)
   const [armedId, setArmedId] = useState<EffectId | null>(null)
@@ -606,9 +612,13 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
         if (fx) setEffects(fx)
         if (typeof saved.selectedInput === 'string') setSelectedInput(saved.selectedInput)
         if (typeof saved.selectedOutput === 'string') setSelectedOutput(saved.selectedOutput)
-        setMasterVolume(clampNum(saved.masterVolume, 0, 1, 0.8))
-        setInputGain(clampNum(saved.inputGain, 0, 2, 1))
+        setMasterVolume(clampNum(saved.masterVolume, 0, 1, DEFAULT_MASTER_VOLUME))
+        setInputGain(clampNum(saved.inputGain, 0, 2, DEFAULT_INPUT_GAIN))
         if (typeof saved.sampleRate === 'number' && SAMPLE_RATES.includes(saved.sampleRate)) setSampleRate(saved.sampleRate)
+      }
+      const active = JSON.parse(localStorage.getItem(ACTIVE_PATCH_KEY) || 'null') as Partial<ActivePatch> | null
+      if (active && typeof active.id === 'string' && typeof active.name === 'string' && typeof active.snapshot === 'string') {
+        setActivePatch({ id: active.id, name: active.name, snapshot: active.snapshot })
       }
     } catch {}
     setLoaded(true)
@@ -635,16 +645,35 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
     setEffects(defaultChain())
     setMasterVolume(DEFAULT_MASTER_VOLUME)
     setInputGain(DEFAULT_INPUT_GAIN)
-    setActivePatchId(null)
+    setActivePatch(null)
   }
 
   const loadPatch = (patch: Patch) => {
     const fx = sanitizeEffects(patch.rig.effects)
     if (!fx?.length) { alert(`Patch "${patch.name}" has no usable effects`); return }
+    const mv = clampNum(patch.rig.masterVolume, 0, 1, DEFAULT_MASTER_VOLUME)
+    const ig = clampNum(patch.rig.inputGain, 0, 2, DEFAULT_INPUT_GAIN)
     setEffects(fx)
-    setMasterVolume(clampNum(patch.rig.masterVolume, 0, 1, 0.8))
-    setInputGain(clampNum(patch.rig.inputGain, 0, 2, 1))
+    setMasterVolume(mv)
+    setInputGain(ig)
+    setActivePatch({ id: patch.id, name: patch.name, snapshot: rigSnapshot(fx, mv, ig) })
   }
+
+  const onPatchSaved = (patch: Patch | null) =>
+    setActivePatch(patch ? { id: patch.id, name: patch.name, snapshot: rigSnapshot(effects, masterVolume, inputGain) } : null)
+
+  useEffect(() => {
+    if (!loaded) return
+    try {
+      if (activePatch) localStorage.setItem(ACTIVE_PATCH_KEY, JSON.stringify(activePatch))
+      else localStorage.removeItem(ACTIVE_PATCH_KEY)
+    } catch {}
+  }, [activePatch, loaded])
+
+  const patchEdited = useMemo(
+    () => Boolean(activePatch) && rigSnapshot(effects, masterVolume, inputGain) !== activePatch!.snapshot,
+    [activePatch, effects, masterVolume, inputGain],
+  )
 
   const computeWires = useCallback(() => {
     const board = boardRef.current
@@ -1264,6 +1293,14 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
     </div>
   )
 
+  const renderPatchName = (openPatches: () => void) => (
+    <button className={`fx-patch-current ${activePatch ? '' : 'none'}`} onClick={openPatches}
+      title={activePatch ? (patchEdited ? `${activePatch.name} (edited since last save)` : activePatch.name) : 'Not saved as a patch'}>
+      <span className="fx-patch-current-name">{activePatch?.name ?? 'Unsaved rig'}</span>
+      {patchEdited && <span className="fx-patch-edited" aria-label="edited">•</span>}
+    </button>
+  )
+
   const renderSkinSwitch = () => (
     <div className="fx-skin-switch" role="radiogroup" aria-label="Pedal style">
       {(['modern', 'classic'] as const).map(s => (
@@ -1452,9 +1489,9 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
         <div className={`fx-drawer ${skinClass} ${collapsed ? 'collapsed' : ''}`} ref={drawerRef} role="region" aria-label="Effects drawer">
           <div className="fx-drawer-bar">
             <span className="fx-drawer-title"><Icon name="sliders-horizontal" size={15} /><span>Effects</span></span>
-            <button className={`fx-drawer-power ${live ? 'active' : ''}`} onClick={toggleMute} aria-pressed={!live} title={live ? 'Mute output' : 'Unmute and play through the rig'}>
+            <button className={`fx-drawer-power ${live ? 'active' : ''}`} onClick={toggleMute} aria-label={live ? 'Mute' : 'Unmute'} title={live ? 'Mute output' : 'Unmute and play through the rig'}>
               <Icon name={live ? 'volume-on' : 'volume-off'} size={14} />
-              <span>{live ? 'Mute' : 'Unmute'}</span>
+              <span className="fx-drawer-btn-label">{live ? 'Mute' : 'Unmute'}</span>
             </button>
             <button className={`fx-drawer-btn ${tunerOpen ? 'active' : ''}`} onClick={toggleTuner} aria-pressed={tunerOpen} title="Tuner (silences output)">
               <Icon name="tuning-fork" size={14} /><span className="fx-drawer-btn-label">Tuner</span>
@@ -1464,9 +1501,10 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
               <VMeter label="OUT" level={vu.out} clip={vu.outClip} />
             </div>
             <input type="range" min="0" max="100" value={masterVolume * 100} onChange={e => setMasterVolume(Number(e.target.value) / 100)} className="fx-mini-slider fx-drawer-volume" aria-label="Output volume" />
+            {renderPatchName(() => setDrawerPopup('patches'))}
             <div className="fx-drawer-actions">
               {renderSkinSwitch()}
-              <button className="fx-drawer-btn" onClick={() => setDrawerPopup('patches')} title="Patches"><Icon name="save" size={14} /><span className="fx-drawer-btn-label">Patches</span></button>
+              <button className="fx-drawer-btn fx-drawer-patches-btn" onClick={() => setDrawerPopup('patches')} title="Patches"><Icon name="save" size={14} /><span className="fx-drawer-btn-label">Patches</span></button>
               <button className="fx-drawer-btn" onClick={() => setDrawerPopup('io')} title="Input, output and sample rate" aria-label="Audio settings"><Icon name="settings" size={14} /></button>
               <button className="fx-drawer-btn" onClick={onOpenFullPage} title="Open the full effects page" aria-label="Open full effects page"><Icon name="maximize" size={14} /></button>
               <button className="fx-drawer-btn" onClick={onToggleCollapsed} aria-expanded={!collapsed} aria-label={collapsed ? 'Expand effects drawer' : 'Collapse effects drawer'} title={collapsed ? 'Show chain' : 'Hide chain (keeps playing)'}>
@@ -1556,7 +1594,7 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
               </div>
               {drawerPopup === 'add' && renderAddPicker()}
               {drawerPopup === 'patches' && (
-                <EffectsPatches currentRig={{ effects, masterVolume, inputGain }} activePatchId={activePatchId} onActiveChange={setActivePatchId} onLoad={loadPatch} />
+                <EffectsPatches currentRig={{ effects, masterVolume, inputGain }} activePatchId={activePatchId} onActiveChange={onPatchSaved} onLoad={loadPatch} />
               )}
               {drawerPopup === 'io' && renderAudioSettings()}
             </div>
@@ -1599,6 +1637,7 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
         {/* Chain Header */}
         <div className="fx-section-title">
           <span>Signal Chain</span>
+          {renderPatchName(() => { setShowPatches(true); setShowAddPicker(false) })}
           <div className="fx-section-actions">
             {renderSkinSwitch()}
             <button
@@ -1617,7 +1656,7 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
           <EffectsPatches
             currentRig={{ effects, masterVolume, inputGain }}
             activePatchId={activePatchId}
-            onActiveChange={setActivePatchId}
+            onActiveChange={onPatchSaved}
             onLoad={loadPatch}
           />
         )}

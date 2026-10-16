@@ -10,7 +10,7 @@ interface EffectsPatchesProps {
   currentRig: PatchRig
   activePatchId: string | null
   onLoad: (patch: Patch) => void
-  onActiveChange: (id: string | null) => void
+  onActiveChange: (patch: Patch | null) => void
 }
 
 const errorText = (e: unknown) =>
@@ -49,13 +49,14 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
     if (!trimmed) { setError('Give your patch a name'); return }
     const patch = await store.create(trimmed, currentRig)
     setPatches(prev => [patch, ...prev])
-    onActiveChange(patch.id)
+    onActiveChange(patch)
     setName('')
   })
 
   const overwrite = () => active && run(async () => {
     const patch = await store.update(active.id, currentRig)
     setPatches(prev => [patch, ...prev.filter(p => p.id !== patch.id)])
+    onActiveChange(patch)
   })
 
   const remove = (patch: Patch) => {
@@ -69,7 +70,6 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
 
   const loadFactory = (p: Patch) => {
     onLoad(p)
-    onActiveChange(p.id)
     setName(`${p.name} (mine)`)
   }
 
@@ -128,7 +128,7 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
         <ul className="fx-patches-list">
           {patches.map(p => (
             <li key={p.id} className={p.id === activePatchId ? 'active' : ''}>
-              <button className="fx-patch-load" onClick={() => { onLoad(p); onActiveChange(p.id) }} disabled={busy}>
+              <button className="fx-patch-load" onClick={() => onLoad(p)} disabled={busy}>
                 <span className="fx-patch-name">{p.name}</span>
                 <span className="fx-patch-date">{new Date(p.updatedAt).toLocaleDateString()}</span>
               </button>
