@@ -213,6 +213,11 @@ export default function Fretboard() {
 
   const scaleNotes = getScaleNotes(selectedKey, selectedScale)
   const currentScale = SCALES[selectedScale]
+  // Three notes per string needs more than five notes; pentatonics would repeat across strings
+  const supports3NPS = scaleNotes.length > 5
+  useEffect(() => {
+    if (!supports3NPS && patternMode === '3nps') setPatternMode('full')
+  }, [supports3NPS, patternMode])
   const fretCount = Math.max(1, endFret - startFret + 1)
   const threeNpsKeys = useMemo(
     () => get3NPSDisplayKeySet(tuning, scaleNotes, selectedPosition),
@@ -986,12 +991,14 @@ export default function Fretboard() {
           </button>
           {instrument.supportsPatterns && (
             <>
-              <button
-                className={`pattern-btn ${patternMode === '3nps' ? 'active' : ''}`}
-                onClick={() => { setPatternMode('3nps'); setSelectedPosition(1); }}
-              >
-                3NPS
-              </button>
+              {supports3NPS && (
+                <button
+                  className={`pattern-btn ${patternMode === '3nps' ? 'active' : ''}`}
+                  onClick={() => { setPatternMode('3nps'); setSelectedPosition(1); }}
+                >
+                  3NPS
+                </button>
+              )}
               <button
                 className={`pattern-btn ${patternMode === 'caged' ? 'active' : ''}`}
                 onClick={() => { setPatternMode('caged'); setSelectedPosition(1); }}

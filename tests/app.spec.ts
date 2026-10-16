@@ -77,6 +77,21 @@ test.describe('Main Page', () => {
     await expect(fullScaleBtn).toHaveClass(/active/)
   })
 
+  test('3NPS is hidden for pentatonic scales', async ({ page }) => {
+    await page.goto('/guitar')
+    await page.waitForSelector('svg.fretboard-svg', { timeout: 10000 })
+    const select = page.locator('.scale-select-prominent')
+    const threeNps = page.locator('.pattern-btn', { hasText: '3NPS' })
+    await select.selectOption('minor-pentatonic')
+    await expect(threeNps).toHaveCount(0)
+    await select.selectOption('dorian')
+    await threeNps.click()
+    await expect(threeNps).toHaveClass(/active/)
+    await select.selectOption('major-pentatonic')
+    await expect(threeNps).toHaveCount(0)
+    await expect(page.locator('.pattern-btn', { hasText: 'Full Scale' })).toHaveClass(/active/)
+  })
+
   test('export dropdown opens and shows 3 options', async ({ page }) => {
     await page.goto('/')
     await page.waitForSelector('svg.fretboard-svg', { timeout: 10000 })
