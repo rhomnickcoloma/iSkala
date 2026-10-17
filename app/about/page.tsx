@@ -109,6 +109,15 @@ export default function AboutPage() {
           </section>
 
           <section className="static-section">
+            <h2>FretPilot AI</h2>
+            <p>
+              <Link href="/fretpilot">FretPilot AI</Link> is an experimental guitar coach on this same site.
+              It listens through the microphone, shows estimated notes on a fretboard, and explains them
+              against chords you enter. Pitch detection is monophonic and stays in the browser.
+            </p>
+          </section>
+
+          <section className="static-section">
             <h2>About NIXX Music</h2>
             <p>
               NIXX Music is a music-focused creative studio dedicated to building tools and resources that
@@ -129,6 +138,7 @@ export default function AboutPage() {
             <p>&copy; {new Date().getFullYear()} NIXX Music. All rights reserved.</p>
             <div className="static-footer-links">
               <Link href="/">Home</Link>
+              <Link href="/fretpilot">FretPilot AI</Link>
               <Link href="/terms">Terms &amp; Conditions</Link>
             </div>
           </footer>
