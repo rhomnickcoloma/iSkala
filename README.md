@@ -25,6 +25,7 @@ Listen to a guitar through the browser microphone, see estimated notes on a fret
 - Optional LLM coaching and backing-prompt parsing: set `OPENAI_API_KEY` in `.env.local` (server only). You can set `OPENAI_MODEL` (default `gpt-4o-mini`). Only structured analysis (notes, chords, inferred key, backing spec) is sent, never audio.
 - Backing chat: type something like `Fusion funk in Am D7` to build a synthesized practice loop. This is browser audio (drums/bass/stabs), not a generated studio recording. It still works without an API key.
 - `/backing-track` opens the **AI** generator by default. **Classic** is the original chord player.
+- The AI loop is a **sampled sketch** (Rhodes, bass, drums) so the chord changes are audible. It will not sound like Suno. Suno-quality audio means calling a music model (Suno, Stable Audio, MusicGen) and playing the returned file — that is a different product than triggering notes in the browser.
 
 ### FretPilot tests
 

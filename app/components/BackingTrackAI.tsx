@@ -78,7 +78,7 @@ export default function BackingTrackAI({ onSpec, active = true }: Props) {
   return (
     <div className="bt-ai">
       <p className="bt-ai-lead">
-        Describe a groove. AI is on by default — we build a practice loop from your words.
+        Describe a groove. AI is on by default — we play a sampled practice loop of your chords.
       </p>
       <div className="bt-ai-examples">
         {EXAMPLES.map(ex => (
@@ -123,7 +123,7 @@ export default function BackingTrackAI({ onSpec, active = true }: Props) {
       >
         {engine.playing ? <><Icon name="stop" size="1em" /> Stop</> : <><Icon name="play" size="1em" /> Play</>}
       </button>
-      <p className="bt-ai-fine">Synthesized in the browser (drums, bass, stabs) — not a studio recording. Switch to Classic for the original chord player.</p>
+      <p className="bt-ai-fine">Sampled Rhodes, bass, and drums so you can hear the progression. This is not a Suno-generated song — that needs a music model, not a browser sketch. Switch to Classic for the original chord player.</p>
     </div>
   )
 }
