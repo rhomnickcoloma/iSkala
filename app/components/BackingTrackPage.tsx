@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Icon } from './Icons'
+import BackingTrackAI from './BackingTrackAI'
+import type { BackingSpec, BackingStyle } from '../lib/fretpilot/backingSpec'
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const
 
@@ -199,12 +201,25 @@ function composeChord(root: string, accidental: string, type: string): string {
   return root + accSuffix + (typeEntry?.suffix || '')
 }
 
+function classicStyleFrom(style: BackingStyle): Style {
+  if (style === 'jazz' || style === 'blues' || style === 'rock' || style === 'pop' || style === 'reggae') return style
+  return 'pop'
+}
+
+function classicKeyFrom(key: string): string {
+  const match = key.match(/^([A-G][#b]?)/i)
+  if (!match) return 'C'
+  const note = match[1][0].toUpperCase() + match[1].slice(1)
+  return (ALL_NOTES as readonly string[]).includes(note) ? note : 'C'
+}
+
 const SESSION_STORAGE_KEY = 'fretwiki-backing-v1'
 
 let sectionCounter = 0
 function newSectionId() { return `s${Date.now()}_${sectionCounter++}` }
 
 export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
+  const [mode, setMode] = useState<'ai' | 'classic'>('ai')
   const [selectedKey, setSelectedKey] = useState<string>('C')
   const [style, setStyle] = useState<Style>('pop')
   const [bpm, setBpm] = useState<number>(120)
@@ -543,6 +558,7 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (mode !== 'classic') return
       if (e.code === 'Space' && !pickerTarget && !showManual) {
         e.preventDefault()
         togglePlayback()
@@ -550,7 +566,7 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [togglePlayback, pickerTarget, showManual])
+  }, [togglePlayback, pickerTarget, showManual, mode])
 
   // Close picker on click outside
   useEffect(() => {
@@ -648,8 +664,35 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
     if (!isPlaying) setBpm(STYLES[s].defaultBpm)
   }
 
+  const stopClassic = useCallback(() => {
+    if (intervalRef.current) clearTimeout(intervalRef.current)
+    intervalRef.current = null
+    stopCurrentChord(0.2)
+    lastChordRef.current = ''
+    setIsPlaying(false)
+    setCurrentChordIdx(-1)
+    setCurrentBeat(-1)
+    beatIndexRef.current = 0
+  }, [stopCurrentChord])
+
+  const switchMode = (next: 'ai' | 'classic') => {
+    if (next === 'ai') stopClassic()
+    setMode(next)
+  }
+
+  const applyAiSpec = (spec: BackingSpec) => {
+    setSelectedKey(classicKeyFrom(spec.key))
+    setStyle(classicStyleFrom(spec.style))
+    setBpm(Math.min(240, Math.max(40, spec.bpm)))
+    setSections([{
+      id: newSectionId(),
+      label: spec.title || 'Section 1',
+      chords: spec.chords.length ? spec.chords : [''],
+    }])
+  }
+
   const handleClose = () => {
-    if (isPlaying) togglePlayback()
+    stopClassic()
     onClose()
   }
 
@@ -671,10 +714,37 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
       <div className="chord-player-modal">
         {/* Header */}
         <div className="chord-player-header">
-          <h1>Chord Player</h1>
+          <div className="bt-header-brand">
+            <h1>Backing Track</h1>
+            <div className="bt-mode-tabs" role="tablist" aria-label="Backing track mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'ai'}
+                className={`bt-mode-tab ${mode === 'ai' ? 'active' : ''}`}
+                onClick={() => switchMode('ai')}
+              >
+                AI
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'classic'}
+                className={`bt-mode-tab ${mode === 'classic' ? 'active' : ''}`}
+                onClick={() => switchMode('classic')}
+              >
+                Classic
+              </button>
+            </div>
+          </div>
           <button className="close-btn" onClick={handleClose} aria-label="Close"><Icon name="x" size={18} /></button>
         </div>
 
+        <div className="bt-ai-pane" hidden={mode !== 'ai'}>
+          <BackingTrackAI active={mode === 'ai'} onSpec={applyAiSpec} />
+        </div>
+
+        <div className="bt-classic-pane" hidden={mode !== 'classic'}>
         {/* Style & Tempo */}
         <div className="chord-player-topbar">
           <div className="style-tabs">
@@ -882,6 +952,7 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
               </button>
             ))}
           </div>
+        </div>
         </div>
       </div>
     </div>

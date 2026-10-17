@@ -22,7 +22,9 @@ Listen to a guitar through the browser microphone, see estimated notes on a fret
 - Pitch detection is **monophonic**. It does not identify polyphonic chords from the mic.
 - Audio is processed **in the browser**. Raw recordings are not uploaded.
 - Coaching works **without an API key** using the music-theory engine.
-- Optional LLM coaching: set `OPENAI_API_KEY` in `.env.local` (server only). You can set `OPENAI_MODEL` (default `gpt-4o-mini`). Only structured analysis (notes, chords, inferred key) is sent, never audio.
+- Optional LLM coaching and backing-prompt parsing: set `OPENAI_API_KEY` in `.env.local` (server only). You can set `OPENAI_MODEL` (default `gpt-4o-mini`). Only structured analysis (notes, chords, inferred key, backing spec) is sent, never audio.
+- Backing chat: type something like `Fusion funk in Am D7` to build a synthesized practice loop. This is browser audio (drums/bass/stabs), not a generated studio recording. It still works without an API key.
+- `/backing-track` opens the **AI** generator by default. **Classic** is the original chord player.
 
 ### FretPilot tests
 

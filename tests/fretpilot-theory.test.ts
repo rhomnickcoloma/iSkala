@@ -25,6 +25,7 @@ import {
 } from '../app/lib/fretpilot/theory'
 import { analyzePhrase } from '../app/lib/fretpilot/analyze'
 import { buildRuleCoach } from '../app/lib/fretpilot/coach'
+import { generateBackingFromPrompt } from '../app/lib/fretpilot/backingSpec'
 import type { DetectedNote } from '../app/lib/fretpilot/types'
 
 describe('pitch and enharmonics', () => {
@@ -172,5 +173,21 @@ describe('analysis and coach', () => {
   it('records uncertainty when no notes are present', () => {
     const analysis = analyzePhrase({ notes: [], chordInput: '', userKey: '', userTempo: null })
     assert.ok(analysis.uncertainties.length > 0)
+  })
+})
+
+describe('backing prompt', () => {
+  it('turns Fusion funk in Am D7 into a Dorian vamp', () => {
+    const spec = generateBackingFromPrompt('Fusion funk in Am D7')
+    assert.deepEqual(spec.chords, ['Am', 'D7'])
+    assert.equal(spec.style, 'funk')
+    assert.match(spec.key, /A/)
+    assert.match(spec.explanation, /Dorian|Am|D7/i)
+  })
+
+  it('tolerates a Fusion typo', () => {
+    const spec = generateBackingFromPrompt('Fusikn funk in Am D7')
+    assert.deepEqual(spec.chords, ['Am', 'D7'])
+    assert.equal(spec.style, 'funk')
   })
 })

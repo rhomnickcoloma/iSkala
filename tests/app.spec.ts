@@ -13,6 +13,13 @@ async function setInstrumentCookie(page: Page) {
   }])
 }
 
+async function openClassicBacking(page: Page) {
+  await page.goto('/backing-track')
+  await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+  await page.getByRole('tab', { name: 'Classic' }).click()
+  await expect(page.locator('.chord-player-topbar')).toBeVisible()
+}
+
 // ─── Main Page ───
 
 test.describe('Main Page', () => {
@@ -156,15 +163,31 @@ test.describe('Static Pages', () => {
 // ─── Backing Track / Chord Player ───
 
 test.describe('Backing Track', () => {
-  test('page loads with chord player UI', async ({ page }) => {
+  test('page loads with AI backing as the default', async ({ page }) => {
     await page.goto('/backing-track')
     await expect(page.locator('.chord-player-modal')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('.chord-player-header h1')).toContainText('Chord Player')
+    await expect(page.locator('.chord-player-header h1')).toContainText('Backing Track')
+    await expect(page.getByRole('tab', { name: 'AI' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByLabel('Backing track prompt')).toBeVisible()
+    await expect(page.locator('.chord-player-topbar')).toBeHidden()
+  })
+
+  test('AI generate builds Fusion funk Am D7 and applies it to Classic', async ({ page }) => {
+    await page.goto('/backing-track')
+    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await page.getByLabel('Backing track prompt').fill('Fusion funk in Am D7')
+    await page.getByRole('button', { name: /^Generate$/ }).click()
+    await expect(page.locator('.bt-ai-cell').nth(0)).toHaveText('Am', { timeout: 10000 })
+    await expect(page.locator('.bt-ai-cell').nth(1)).toHaveText('D7')
+    await expect(page.locator('.bt-ai-line.ai').first()).toContainText(/Am/)
+    await page.getByRole('tab', { name: 'Classic' }).click()
+    const texts = await page.locator('.chord-slot-name').allTextContents()
+    expect(texts).toContain('Am')
+    expect(texts).toContain('D7')
   })
 
   test('style tabs: 5 genres, switching works', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     const tabs = page.locator('.style-tab')
     expect(await tabs.count()).toBe(5)
     await expect(tabs.nth(0)).toHaveClass(/active/)
@@ -175,16 +198,14 @@ test.describe('Backing Track', () => {
   })
 
   test('key selector changes key', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     const keySelect = page.locator('.cp-select')
     await keySelect.selectOption('G')
     await expect(keySelect).toHaveValue('G')
   })
 
   test('BPM increments and decrements by 5', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     const bpmDisplay = page.locator('.bpm-control span')
     const initialBpm = Number(await bpmDisplay.textContent())
     await page.locator('.bpm-control button').nth(1).click()
@@ -194,8 +215,7 @@ test.describe('Backing Track', () => {
   })
 
   test('chord picker opens with root, accidental, type', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     await page.locator('.chord-slot').first().click()
     const picker = page.locator('.chord-picker')
     await expect(picker).toBeVisible()
@@ -208,8 +228,7 @@ test.describe('Backing Track', () => {
   })
 
   test('chord picker: select root, accidental, type and apply', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     await page.locator('.chord-slot').first().click()
     const picker = page.locator('.chord-picker')
     // Select E
@@ -226,8 +245,7 @@ test.describe('Backing Track', () => {
   })
 
   test('chord picker: manual input mode works', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     await page.locator('.chord-slot').first().click()
     const picker = page.locator('.chord-picker')
     await picker.locator('.picker-mode-toggle').click()
@@ -239,16 +257,14 @@ test.describe('Backing Track', () => {
   })
 
   test('add chord adds a new slot', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     const initial = await page.locator('.chord-slot').count()
     await page.locator('.chord-add-btn').first().click()
     expect(await page.locator('.chord-slot').count()).toBe(initial + 1)
   })
 
   test('remove chord removes a slot', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     const initial = await page.locator('.chord-slot').count()
     await page.locator('.chord-slot').first().hover()
     const removeBtn = page.locator('.chord-slot').first().locator('.chord-remove')
@@ -257,16 +273,14 @@ test.describe('Backing Track', () => {
   })
 
   test('add section adds a new section block', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     const initial = await page.locator('.chord-section').count()
     await page.locator('.cp-action-btn', { hasText: 'Add section' }).click()
     expect(await page.locator('.chord-section').count()).toBe(initial + 1)
   })
 
   test('section label is editable', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     const labelInput = page.locator('.section-label-input').first()
     await labelInput.click()
     await labelInput.fill('Verse')
@@ -274,8 +288,7 @@ test.describe('Backing Track', () => {
   })
 
   test('generate chords fills non-empty chords', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     await page.locator('.cp-action-btn.clear').click()
     await page.locator('.cp-action-btn.generate').click()
     await page.waitForTimeout(300)
@@ -285,8 +298,7 @@ test.describe('Backing Track', () => {
   })
 
   test('preset buttons load progressions', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     await page.locator('.progression-btn').first().click()
     await page.waitForTimeout(300)
     const texts = await page.locator('.chord-slot-name').allTextContents()
@@ -295,11 +307,10 @@ test.describe('Backing Track', () => {
   })
 
   test('play/stop cycle works', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     await page.locator('.cp-action-btn.generate').click()
     await page.waitForTimeout(200)
-    const playBtn = page.locator('.cp-play-btn')
+    const playBtn = page.locator('.bt-classic-pane .cp-play-btn')
     await playBtn.click()
     await expect(playBtn).toContainText('Stop')
     await expect(playBtn).toHaveClass(/playing/)
@@ -311,8 +322,7 @@ test.describe('Backing Track', () => {
   })
 
   test('volume sliders work', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     const sliders = page.locator('.cp-slider')
     expect(await sliders.count()).toBe(2)
     await expect(sliders.nth(0)).toBeVisible()
@@ -320,8 +330,7 @@ test.describe('Backing Track', () => {
   })
 
   test('instrument toggle buttons work', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     const chordBtn = page.locator('.cp-icon-btn[title="Chords"]')
     const drumBtn = page.locator('.cp-icon-btn[title="Drums"]')
     await expect(chordBtn).toHaveClass(/active/)
@@ -333,8 +342,7 @@ test.describe('Backing Track', () => {
   })
 
   test('loop toggle works', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     const loopBtn = page.locator('.cp-icon-btn[title="Loop"]')
     await expect(loopBtn).toHaveClass(/active/)
     await loopBtn.click()
@@ -342,8 +350,7 @@ test.describe('Backing Track', () => {
   })
 
   test('close button navigates away', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     await page.locator('.chord-player-header .close-btn').click()
     await page.waitForTimeout(1000)
     await expect(page.locator('.chord-player-modal')).not.toBeVisible()
@@ -353,8 +360,7 @@ test.describe('Backing Track', () => {
     const errors: string[] = []
     page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()) })
     page.on('pageerror', err => errors.push(err.message))
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     await page.waitForTimeout(1000)
     const realErrors = errors.filter(e => !e.includes('favicon') && !e.includes('404'))
     expect(realErrors).toHaveLength(0)
@@ -482,10 +488,10 @@ test.describe('Regressions', () => {
   })
 
   test('backing track progression survives refresh', async ({ page }) => {
-    await page.goto('/backing-track')
-    await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
+    await openClassicBacking(page)
     await page.locator('.cp-select').selectOption('G')
     await page.reload()
+    await page.getByRole('tab', { name: 'Classic' }).click()
     await expect(page.locator('.cp-select')).toHaveValue('G')
   })
 
