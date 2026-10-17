@@ -32,4 +32,13 @@ test.describe('FretPilot AI', () => {
     await chords.fill('Am F C G')
     await expect(page.locator('.fp-timeline-cell').first()).toHaveText('Am')
   })
+
+  test('backing chat generates an Am D7 loop', async ({ page }) => {
+    await page.goto('/fretpilot')
+    await page.getByLabel('Backing track prompt').fill('Fusion funk in Am D7')
+    await page.getByRole('button', { name: 'Generate' }).click()
+    await expect(page.locator('.fp-chat-line.coach').first()).toContainText(/Am/i)
+    await expect(page.getByPlaceholder('G Em C D')).toHaveValue(/Am/)
+    await expect(page.locator('.fp-timeline-cell').first()).toHaveText('Am')
+  })
 })

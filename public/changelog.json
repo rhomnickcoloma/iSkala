@@ -8,7 +8,8 @@
       "Monophonic pitch detection in the browser with confidence and signal quality",
       "Manual chord progression, key, tempo, and optional backing-track playback",
       "On-device music-theory coach plus optional server-side LLM coaching",
-      "Try Again compares attempts without grading or fake improvement scores"
+      "Try Again compares attempts without grading or fake improvement scores",
+      "Backing Track defaults to AI chat generation; the original chord player is Classic"
     ]
   },
   {

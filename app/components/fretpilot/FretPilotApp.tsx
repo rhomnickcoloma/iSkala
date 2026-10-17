@@ -6,6 +6,8 @@ import { Icon } from '../Icons'
 import LiveFretboard from './LiveFretboard'
 import { analyzePhrase } from '../../lib/fretpilot/analyze'
 import { attemptSummary, buildRuleCoach } from '../../lib/fretpilot/coach'
+import { generateBackingFromPrompt } from '../../lib/fretpilot/backingSpec'
+import type { BackingSpec } from '../../lib/fretpilot/backingSpec'
 import { loadSessions, saveSession } from '../../lib/fretpilot/session'
 import {
   chordTonePcs,
@@ -15,6 +17,7 @@ import {
   parseProgression,
   timingSpreadMs,
 } from '../../lib/fretpilot/theory'
+import { useBackingEngine } from '../../lib/fretpilot/useBackingEngine'
 import { useGuitarInput } from '../../lib/fretpilot/useGuitarInput'
 import type {
   AttemptRecord,
@@ -51,7 +54,12 @@ export default function FretPilotApp() {
   const [backingUrl, setBackingUrl] = useState<string | null>(null)
   const [backingPlaying, setBackingPlaying] = useState(false)
   const [backingProgress, setBackingProgress] = useState(0)
+  const [chatPrompt, setChatPrompt] = useState('Fusion funk in Am D7')
+  const [chatLog, setChatLog] = useState<{ role: 'you' | 'coach'; text: string }[]>([])
+  const [chatBusy, setChatBusy] = useState(false)
+  const [generatedSpec, setGeneratedSpec] = useState<BackingSpec | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const backing = useBackingEngine()
 
   const tuning = GUITAR_TUNINGS.find(t => t.id === tuningId) ?? GUITAR_TUNINGS[0]
   const chords = useMemo(() => parseProgression(chordInput), [chordInput])
@@ -174,6 +182,7 @@ export default function FretPilotApp() {
   }
 
   const onBackingFile = (file: File | null) => {
+    backing.stop()
     if (backingUrl) URL.revokeObjectURL(backingUrl)
     setBackingPlaying(false)
     setBackingProgress(0)
@@ -190,12 +199,70 @@ export default function FretPilotApp() {
     const el = audioRef.current
     if (!el) return
     if (el.paused) {
+      backing.stop()
       await el.play()
       setBackingPlaying(true)
     } else {
       el.pause()
       setBackingPlaying(false)
     }
+  }
+
+  const applyBackingSpec = (spec: BackingSpec) => {
+    setGeneratedSpec(spec)
+    setChordInput(spec.chords.join(' '))
+    setUserKey(spec.key)
+    setTempo(spec.bpm)
+    setChatLog(prev => [...prev, { role: 'coach', text: `${spec.title} · ${spec.chords.join(' – ')} · ${spec.bpm} BPM. ${spec.explanation}` }])
+  }
+
+  const generateFromChat = async () => {
+    const prompt = chatPrompt.trim()
+    if (!prompt) return
+    setChatBusy(true)
+    setChatLog(prev => [...prev, { role: 'you', text: prompt }])
+    const local = generateBackingFromPrompt(prompt)
+    applyBackingSpec(local)
+    audioRef.current?.pause()
+    setBackingPlaying(false)
+    await backing.play(local)
+    try {
+      const res = await fetch('/api/fretpilot/backing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+        signal: AbortSignal.timeout(6000),
+      })
+      const data = await res.json() as { spec?: BackingSpec; source?: string }
+      if (data.source === 'llm' && data.spec?.chords?.length) {
+        setGeneratedSpec(data.spec)
+        setChordInput(data.spec.chords.join(' '))
+        setUserKey(data.spec.key)
+        setTempo(data.spec.bpm)
+        setChatLog(prev => {
+          const next = [...prev]
+          const last = [...next].reverse().findIndex(m => m.role === 'coach')
+          const idx = last === -1 ? -1 : next.length - 1 - last
+          const line = { role: 'coach' as const, text: `${data.spec!.title} · ${data.spec!.chords.join(' – ')} · ${data.spec!.bpm} BPM. ${data.spec!.explanation}` }
+          if (idx >= 0) next[idx] = line
+          else next.push(line)
+          return next
+        })
+        await backing.play(data.spec)
+      }
+    } catch {
+      // Local parse already applied.
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  const playGenerated = async () => {
+    const spec = generatedSpec ?? generateBackingFromPrompt(chatPrompt || `${chordInput} in ${userKey}`)
+    if (!generatedSpec) applyBackingSpec(spec)
+    audioRef.current?.pause()
+    setBackingPlaying(false)
+    await backing.play(spec)
   }
 
   const liveNote = input.live ? `${input.live.name}${input.live.octave}` : '—'
@@ -306,12 +373,47 @@ export default function FretPilotApp() {
             {chords.map((c, i) => (
               <div
                 key={`${c.symbol}-${i}`}
-                className={`fp-timeline-cell ${backingPlaying && Math.floor(backingProgress * chordCount) === i ? 'now' : ''}`}
+                className={`fp-timeline-cell ${(backing.playing && backing.chordIndex === i) || (backingPlaying && Math.floor(backingProgress * chordCount) === i) ? 'now' : ''}`}
               >
                 {c.symbol}
               </div>
             ))}
           </div>
+
+          <div className="fp-chat">
+            <p className="fp-field-label">Ask for a backing example</p>
+            <div className="fp-chat-log" aria-live="polite">
+              {chatLog.length === 0 && (
+                <p className="fp-fine">Try “Fusion funk in Am D7” — we build a synthesized loop from the prompt.</p>
+              )}
+              {chatLog.map((m, i) => (
+                <p key={`${m.role}-${i}`} className={`fp-chat-line ${m.role}`}>
+                  <strong>{m.role === 'you' ? 'You' : 'FretPilot'}</strong> {m.text}
+                </p>
+              ))}
+            </div>
+            <form
+              className="fp-chat-form"
+              onSubmit={e => { e.preventDefault(); void generateFromChat() }}
+            >
+              <input
+                value={chatPrompt}
+                onChange={e => setChatPrompt(e.target.value)}
+                placeholder="Fusion funk in Am D7"
+                aria-label="Backing track prompt"
+              />
+              <button type="submit" className="fp-btn" disabled={chatBusy}>
+                {chatBusy ? '…' : 'Generate'}
+              </button>
+            </form>
+            <div className="fp-backing">
+              <button className="fp-btn fp-btn-listen" type="button" onClick={() => (backing.playing ? backing.stop() : void playGenerated())}>
+                <Icon name={backing.playing ? 'stop' : 'play'} size={16} />
+                {backing.playing ? 'Stop loop' : 'Play loop'}
+              </button>
+            </div>
+          </div>
+
           <div className="fp-backing">
             <input
               type="file"
@@ -332,7 +434,7 @@ export default function FretPilotApp() {
                 />
                 <button className="fp-btn ghost" onClick={toggleBacking}>
                   <Icon name={backingPlaying ? 'pause' : 'play'} size={16} />
-                  {backingPlaying ? 'Pause' : 'Play'} backing
+                  {backingPlaying ? 'Pause' : 'Play'} file
                 </button>
                 <button className="fp-btn ghost" onClick={() => { const el = audioRef.current; if (el) { el.currentTime = 0; void el.play(); setBackingPlaying(true) } }}>
                   Restart
@@ -341,7 +443,7 @@ export default function FretPilotApp() {
               </>
             )}
           </div>
-          <p className="fp-fine">Backing playback is separate from the guitar input so the track is not treated as your playing. Chord detection from audio is not implemented — enter chords yourself.</p>
+          <p className="fp-fine">Generated loops are synthesized in this browser (drums, bass, stabs). They are not uploaded studio tracks, and they stay separate from the guitar mic.</p>
         </section>
       </div>
 

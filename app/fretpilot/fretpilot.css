@@ -260,6 +260,50 @@
   align-items: center;
 }
 
+.fp-field-label {
+  font-size: 0.78rem;
+  color: #9aa7b8;
+  margin: 0 0 0.35rem;
+}
+
+.fp-chat {
+  margin: 0.2rem 0 0.75rem;
+}
+
+.fp-chat-log {
+  max-height: 160px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  margin-bottom: 0.5rem;
+}
+
+.fp-chat-line {
+  margin: 0.3rem 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.fp-chat-line.you strong { color: #7ec8e3; }
+.fp-chat-line.coach strong { color: #8ee0b0; }
+
+.fp-chat-form {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.55rem;
+}
+
+.fp-chat-form input {
+  flex: 1;
+  background: #121821;
+  color: #eef2f7;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+}
+
 .fp-board-card {
   margin-bottom: 1rem;
 }
