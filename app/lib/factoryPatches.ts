@@ -55,9 +55,10 @@ export const FACTORY_PATCHES: FactoryPatch[] = [
     reverb(60, 60),
   ]),
 
-  preset('funk', 'NIXX Funk', 'Squashed, bright clean with a slow phaser', [
+  preset('funk', 'NIXX Funk', 'Squashed chicken-pickin clean with auto-wah and a slow phaser', [
     gate(-60, 60),
     comp(-30, 6, 5, 150),
+    { type: 'auto-wah', params: { sense: 70, range: 55, q: 10, mix: 100 }, extraValue: 'up' },
     amp('jazz-clean', 3, 4, 6, 7, 8, 3),
     cab('2x12-twin'),
     { type: 'phaser', params: { rate: 6, depth: 45, feedback: 30 } },

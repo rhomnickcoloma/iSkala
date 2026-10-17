@@ -674,14 +674,14 @@ test.describe('Pedal style switch', () => {
 
 test.describe('NIXX presets', () => {
   const PRESETS: [string, string[]][] = [
-    ['Clean', ['Noise Gate', 'Compressor', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
+    ['Clean', ['Noise Gate', 'Compressor', 'Amplifier', 'Reverb']],
     ['Clean Sky', ['Compressor', 'Amplifier', 'Cabinet', 'Chorus', 'Delay', 'Reverb']],
-    ['Funk', ['Noise Gate', 'Compressor', 'Amplifier', 'Cabinet', 'Phaser', 'Reverb']],
-    ['Blues OD', ['Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', 'Reverb']],
-    ['Butter OD', ['Noise Gate', 'Compressor', 'Overdrive', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
+    ['Funk', ['Noise Gate', 'Compressor', 'Auto Wah', 'Amplifier', 'Cabinet', 'Phaser', 'Reverb']],
+    ['Blues OD', ['Noise Gate', 'Compressor', 'Amplifier']],
+    ['Butter OD', ['Noise Gate', 'Compressor', 'Distortion', 'Amplifier', 'Delay', 'Reverb']],
     ['Drive', ['Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
     ['Lead', ['Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
-    ['Metal', ['Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', '6-Band EQ']],
+    ['Metal', ['Noise Gate', 'Distortion', 'Amplifier', 'Cabinet', '6-Band EQ']],
   ]
 
   test('every preset loads its chain and plays without errors', async ({ page }) => {

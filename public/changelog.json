@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.4.1",
+    "date": "2026-10-17",
+    "title": "Auto Wah",
+    "changes": [
+      "New Auto Wah pedal: envelope-driven bandpass with Sense, Range, Q, Mix, and up/down mode",
+      "NIXX Funk preset now includes Auto Wah ahead of the amp for chicken-pickin funk tones"
+    ]
+  },
+  {
     "version": "1.4.0",
     "date": "2026-10-16",
     "title": "FretPilot AI",
