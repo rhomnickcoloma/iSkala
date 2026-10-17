@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test'
 
-test.describe('FretPilot AI', () => {
+test.describe('FretWiki AI', () => {
   test('loads the coach page with listen and analyze controls', async ({ page }) => {
-    await page.goto('/fretpilot')
-    await expect(page.getByRole('heading', { name: 'FretPilot AI' })).toBeVisible()
+    await page.goto('/ai')
+    await expect(page.getByRole('heading', { name: 'FretWiki AI' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Listen' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Analyze' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Try Again' }).first()).toBeVisible()
@@ -11,7 +11,7 @@ test.describe('FretPilot AI', () => {
   })
 
   test('tapping the fretboard and analyzing produces coaching', async ({ page }) => {
-    await page.goto('/fretpilot')
+    await page.goto('/ai')
     const svg = page.locator('svg.fp-fretboard')
     await expect(svg).toBeVisible()
     const box = await svg.boundingBox()
@@ -26,7 +26,7 @@ test.describe('FretPilot AI', () => {
   })
 
   test('chord field is editable', async ({ page }) => {
-    await page.goto('/fretpilot')
+    await page.goto('/ai')
     const chords = page.getByPlaceholder('G Em C D')
     await expect(chords).toBeVisible()
     await chords.fill('Am F C G')

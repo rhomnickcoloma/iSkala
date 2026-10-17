@@ -1,4 +1,4 @@
-/** FretPilot music-theory engine. Pure functions, no LLM, no DOM. */
+/** FretWiki AI music-theory engine. Pure functions, no LLM, no DOM. */
 
 export const SHARP_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const
 export const FLAT_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'] as const

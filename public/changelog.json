@@ -11,9 +11,9 @@
   {
     "version": "1.4.0",
     "date": "2026-10-16",
-    "title": "FretPilot AI",
+    "title": "FretWiki AI",
     "changes": [
-      "New /fretpilot page: listen to a guitar, see notes on the fretboard, and get a coaching loop",
+      "New /ai page: listen to a guitar, see notes on the fretboard, and get a coaching loop",
       "Monophonic pitch detection in the browser with confidence and signal quality",
       "Manual chord progression, key, tempo, and optional backing-track playback",
       "On-device music-theory coach plus optional server-side LLM coaching",

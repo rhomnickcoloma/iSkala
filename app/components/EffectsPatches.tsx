@@ -25,7 +25,10 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [name, setName] = useState('')
+  const [name, setName] = useState(() => {
+    const preset = FACTORY_PATCHES.find(p => p.id === activePatchId)
+    return preset ? `${preset.name} (mine)` : ''
+  })
 
   const refresh = useCallback(async () => {
     setLoading(true)

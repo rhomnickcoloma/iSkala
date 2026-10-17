@@ -1,7 +1,7 @@
 'use client'
 
-import { fretPositionsForMidi, fretPositionsForPc, midiToNote, wrapPc } from '../../lib/fretpilot/theory'
-import type { DetectedNote, LivePitch } from '../../lib/fretpilot/types'
+import { fretPositionsForMidi, fretPositionsForPc, midiToNote, wrapPc } from '../../lib/ai/theory'
+import type { DetectedNote, LivePitch } from '../../lib/ai/types'
 
 const FRET_W = 52
 const NUT = 18

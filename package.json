@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "playwright test",
-    "test:theory": "tsx --test tests/fretpilot-theory.test.ts",
+    "test:theory": "tsx --test tests/ai-theory.test.ts",
     "test:db": "node tests/accounts/db.test.mjs",
     "test:accounts": "node tests/accounts/flow.test.mjs",
     "setup:supabase": "node scripts/setup-supabase.mjs"

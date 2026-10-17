@@ -3,12 +3,10 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import { usePathname, useRouter } from 'next/navigation'
-import { INSTRUMENTS } from '../lib/instruments'
-
 const EffectsPage = dynamic(() => import('../components/EffectsPage'), { ssr: false })
 
-// The drawer lives above the page routes so audio keeps running while switching instruments
-const FRETBOARD_PATHS = new Set(['/', '/nixx', ...Object.keys(INSTRUMENTS).map(id => `/${id}`)])
+// The drawer lives above the page routes so audio keeps running while navigating
+const FULL_EFFECTS_PATH = '/effects'
 
 export function EffectsDrawerProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -21,8 +19,8 @@ export function EffectsDrawerProvider({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      {/* Leaving the fretboard (e.g. for the full effects page) unmounts the drawer, which stops its audio */}
-      {FRETBOARD_PATHS.has(pathname) && (
+      {/* Opening the full effects page unmounts the drawer, which stops its audio */}
+      {pathname !== FULL_EFFECTS_PATH && (
         <EffectsPage
           variant="drawer"
           collapsed={collapsed}

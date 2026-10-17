@@ -1,6 +1,6 @@
 # FretWiki
 
-Interactive fretboard reference for guitar, bass, and ukulele, plus **FretPilot AI**, an in-browser guitar coach.
+Interactive fretboard reference for guitar, bass, and ukulele, plus **FretWiki AI**, an in-browser guitar coach.
 
 ## Run locally
 
@@ -11,11 +11,11 @@ yarn dev
 
 Open [http://localhost:3000](http://localhost:3000) for FretWiki scales.
 
-Open [http://localhost:3000/fretpilot](http://localhost:3000/fretpilot) for FretPilot AI.
+Open [http://localhost:3000/ai](http://localhost:3000/ai) for FretWiki AI.
 
 Copy `.env.example` to `.env.local` if you need optional services. The apps start without those variables.
 
-## FretPilot AI
+## FretWiki AI
 
 Listen to a guitar through the browser microphone, see estimated notes on a fretboard, enter a chord progression, and get coaching plus a short exercise. Then press **Try Again**.
 
@@ -24,7 +24,7 @@ Listen to a guitar through the browser microphone, see estimated notes on a fret
 - Coaching works **without an API key** using the music-theory engine.
 - Optional LLM coaching: set `OPENAI_API_KEY` in `.env.local` (server only). You can set `OPENAI_MODEL` (default `gpt-4o-mini`). Only structured analysis (notes, chords, inferred key) is sent, never audio.
 
-### FretPilot tests
+### FretWiki AI tests
 
 ```bash
 yarn test:theory
@@ -38,7 +38,7 @@ yarn build        # Production build (required for Vercel)
 yarn start        # Serve the production build
 yarn lint         # ESLint
 yarn test         # Playwright UI tests
-yarn test:theory  # FretPilot music-theory unit tests
+yarn test:theory  # FretWiki AI music-theory unit tests
 ```
 
 ## Optional accounts (FretWiki effects patches)

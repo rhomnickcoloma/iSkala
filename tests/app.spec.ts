@@ -4,6 +4,13 @@ import { existsSync, readFileSync } from 'fs'
 const accountsConfigured = existsSync('.env.local') && /^NEXT_PUBLIC_SUPABASE_URL=.+/m.test(readFileSync('.env.local', 'utf8'))
 
 // Set instrument cookie before navigating to prevent the instrument selector overlay
+async function tweakFirstKnob(page: Page) {
+  await page.locator('.fx-pedalboard .fx-block-main').first().click()
+  await page.locator('.fx-popup .fx-rotary').first().focus()
+  await page.keyboard.press('ArrowUp')
+  await page.keyboard.press('Escape')
+}
+
 async function setInstrumentCookie(page: Page) {
   await page.context().addCookies([{
     name: 'fretwiki_instrument',
@@ -491,13 +498,14 @@ test.describe('Regressions', () => {
 
   test('effects page: knobs are keyboard accessible, tuner toggles', async ({ page }) => {
     await page.goto('/effects')
-    const knob = page.locator('.fx-rotary').first()
+    await expect(page.locator('.fx-sample-rate, .fx-rate-select')).toHaveValue('48000')
+    await page.locator('.fx-pedalboard .fx-block-main').first().click()
+    const knob = page.locator('.fx-popup .fx-rotary').first()
     await expect(knob).toHaveAttribute('role', 'slider')
     const before = Number(await knob.getAttribute('aria-valuenow'))
     await knob.focus()
     await page.keyboard.press('ArrowUp')
     await expect(knob).not.toHaveAttribute('aria-valuenow', String(before))
-    await expect(page.locator('.fx-sample-rate, .fx-rate-select')).toHaveValue('48000')
   })
 
   test('every page has its own canonical URL', async ({ page }) => {
@@ -640,7 +648,15 @@ test.describe('Effects drawer', () => {
     await page.getByRole('button', { name: 'Open full effects page' }).click()
     await expect(page).toHaveURL(/\/effects$/)
     await expect(page.locator('.fx-drawer')).toHaveCount(0)
-    await expect(page.locator('.fx-pedalboard .fx-pedal h3')).toHaveText(names)
+    await expect(page.locator('.fx-pedalboard .fx-block-name')).toHaveText(names)
+  })
+
+  test('shows on other pages but not on the full effects page', async ({ page }) => {
+    await page.goto('/about')
+    await expect(page.locator('.fx-drawer')).toBeVisible()
+    await page.goto('/effects')
+    await page.locator('.fx-pedalboard .fx-block').first().waitFor()
+    await expect(page.locator('.fx-drawer')).toHaveCount(0)
   })
 
   test('power button turns audio off but keeps the drawer', async ({ page }) => {
@@ -656,14 +672,17 @@ test.describe('Effects drawer', () => {
 test.describe('Pedal style switch', () => {
   test('classic skin persists, shows footswitches, and the footswitch bypasses', async ({ page }) => {
     await page.goto('/effects')
-    await page.locator('.fx-pedalboard .fx-pedal').first().waitFor()
+    await page.locator('.fx-pedalboard .fx-block').first().waitFor()
     await page.getByRole('radio', { name: 'Classic' }).click()
     await expect(page.locator('.fx-modal.fx-skin-classic')).toHaveCount(1)
-    const first = page.locator('.fx-pedalboard .fx-pedal').first()
-    await first.locator('.fx-stomp').click()
+    const first = page.locator('.fx-pedalboard .fx-block').first()
+    await first.locator('.fx-block-main').click()
+    const stomp = page.locator('.fx-popup .fx-stomp')
+    await stomp.click()
     await expect(first).toHaveClass(/\boff\b/)
-    await first.locator('.fx-stomp').click()
+    await stomp.click()
     await expect(first).toHaveClass(/\bon\b/)
+    await page.keyboard.press('Escape')
 
     await page.reload()
     await expect(page.locator('.fx-modal.fx-skin-classic')).toHaveCount(1)
@@ -688,12 +707,12 @@ test.describe('NIXX presets', () => {
     const errors: string[] = []
     page.on('pageerror', e => errors.push(e.message))
     await page.goto('/effects')
-    await page.locator('.fx-pedalboard .fx-pedal').first().waitFor()
+    await page.locator('.fx-pedalboard .fx-block').first().waitFor()
     await page.getByRole('button', { name: 'Unmute' }).click()
     await page.getByRole('button', { name: /Patches/ }).click()
     for (const [name, chain] of PRESETS) {
       await page.locator('.fx-preset').filter({ has: page.locator('.fx-preset-name', { hasText: new RegExp(`^${name}$`) }) }).click()
-      await expect(page.locator('.fx-pedalboard .fx-pedal h3')).toHaveText(chain)
+      await expect(page.locator('.fx-pedalboard .fx-block-name')).toHaveText(chain)
       await expect(page.locator('.fx-preset.active .fx-preset-name')).toHaveText(name)
       await page.waitForTimeout(150)
     }
@@ -706,9 +725,9 @@ test.describe('NIXX presets', () => {
     await page.getByRole('button', { name: /Patches/ }).click()
     await page.locator('.fx-preset', { hasText: /^Blues OD/ }).click()
     await expect(page.getByLabel('Patch name')).toHaveValue('NIXX Blues OD (mine)')
-    const knob = page.locator('.fx-pedalboard .fx-rotary').first()
-    await knob.focus()
-    await page.keyboard.press('ArrowUp')
+    await page.keyboard.press('Escape')
+    await tweakFirstKnob(page)
+    await page.getByRole('button', { name: /Patches/ }).click()
     await page.getByRole('button', { name: 'Save new' }).click()
     await expect(page.locator('.fx-patch-name')).toHaveText(['NIXX Blues OD (mine)'])
     await expect(page.locator('.fx-preset')).toHaveCount(8)
@@ -720,7 +739,7 @@ test.describe('Current patch name', () => {
     await page.goto('/effects')
     await page.evaluate(() => { localStorage.clear() })
     await page.reload()
-    await page.locator('.fx-pedalboard .fx-pedal').first().waitFor()
+    await page.locator('.fx-pedalboard .fx-block').first().waitFor()
     const label = page.locator('.fx-section-title .fx-patch-current')
     await expect(label).toHaveText('Unsaved rig')
     await expect(page.locator('.fx-meter-label').first()).toHaveText('75%')
@@ -731,11 +750,11 @@ test.describe('Current patch name', () => {
     await expect(label).toHaveText('NIXX Drive')
     await expect(label.locator('.fx-patch-edited')).toHaveCount(0)
 
-    const knob = page.locator('.fx-pedalboard .fx-rotary').first()
-    await knob.focus()
-    await page.keyboard.press('ArrowUp')
+    await page.keyboard.press('Escape')
+    await tweakFirstKnob(page)
     await expect(label.locator('.fx-patch-edited')).toHaveCount(1)
 
+    await label.click()
     await page.getByRole('button', { name: 'Save new' }).click()
     await expect(label).toHaveText('NIXX Drive (mine)')
     await expect(label.locator('.fx-patch-edited')).toHaveCount(0)

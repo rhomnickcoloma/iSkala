@@ -22,10 +22,10 @@ import {
   targetNotesForChord,
   voiceLead,
   wrapPc,
-} from '../app/lib/fretpilot/theory'
-import { analyzePhrase } from '../app/lib/fretpilot/analyze'
-import { buildRuleCoach } from '../app/lib/fretpilot/coach'
-import type { DetectedNote } from '../app/lib/fretpilot/types'
+} from '../app/lib/ai/theory'
+import { analyzePhrase } from '../app/lib/ai/analyze'
+import { buildRuleCoach } from '../app/lib/ai/coach'
+import type { DetectedNote } from '../app/lib/ai/types'
 
 describe('pitch and enharmonics', () => {
   it('maps MIDI 69 to A4', () => {

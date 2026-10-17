@@ -94,14 +94,14 @@ export default function TermsPage() {
           <section className="static-section">
             <h2>6. Microphone Access</h2>
             <p>
-              The tuner, effects, and FretPilot AI features may request access to your device&apos;s
+              The tuner, effects, and FretWiki AI features may request access to your device&apos;s
               microphone. Microphone audio is processed in your browser for pitch detection and is not
-              stored or uploaded by default. FretPilot does not send raw recordings to a server.
+              stored or uploaded by default. FretWiki AI does not send raw recordings to a server.
             </p>
             <p>
-              If a site operator configures an optional LLM API key, FretPilot may send structured
+              If a site operator configures an optional LLM API key, FretWiki AI may send structured
               analysis (detected note names, entered chords, inferred key, and similar text) to that
-              provider to generate coaching. You can use FretPilot without this; the on-device theory
+              provider to generate coaching. You can use FretWiki AI without this; the on-device theory
               coach still works.
             </p>
           </section>

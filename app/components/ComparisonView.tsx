@@ -192,8 +192,8 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
   }
 
   return (
-    <div className="comparison-overlay">
-      <div className="comparison-modal single-fretboard">
+    <div className="tool-page">
+      <div className="comparison-modal single-fretboard tool-panel">
         <div className="comparison-header">
           <h1><span className="label-long">Scale Comparison</span><span className="label-short">Compare</span></h1>
           <div className="comparison-header-controls">
@@ -229,7 +229,7 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
               </button>
             )}
           </div>
-          <button className="close-btn" onClick={onClose} aria-label="Close"><Icon name="x" size={18} /></button>
+          <button className="close-btn" onClick={onClose} aria-label="Back to FretWiki" title="Back to FretWiki"><Icon name="house" size={18} /></button>
         </div>
         
         <div className="comparison-single-content">

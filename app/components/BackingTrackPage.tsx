@@ -667,12 +667,12 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
     : 0
 
   return (
-    <div className="chord-player-overlay">
-      <div className="chord-player-modal">
+    <div className="tool-page">
+      <div className="chord-player-modal tool-panel">
         {/* Header */}
         <div className="chord-player-header">
           <h1>Chord Player</h1>
-          <button className="close-btn" onClick={handleClose} aria-label="Close"><Icon name="x" size={18} /></button>
+          <button className="close-btn" onClick={handleClose} aria-label="Back to FretWiki" title="Back to FretWiki"><Icon name="house" size={18} /></button>
         </div>
 
         {/* Style & Tempo */}

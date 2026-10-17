@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Icon } from '../Icons'
 import LiveFretboard from './LiveFretboard'
-import { analyzePhrase } from '../../lib/fretpilot/analyze'
-import { attemptSummary, buildRuleCoach } from '../../lib/fretpilot/coach'
-import { loadSessions, saveSession } from '../../lib/fretpilot/session'
+import { analyzePhrase } from '../../lib/ai/analyze'
+import { attemptSummary, buildRuleCoach } from '../../lib/ai/coach'
+import { loadSessions, saveSession } from '../../lib/ai/session'
 import {
   chordTonePcs,
   GUITAR_TUNINGS,
@@ -14,8 +14,8 @@ import {
   nameToPc,
   parseProgression,
   timingSpreadMs,
-} from '../../lib/fretpilot/theory'
-import { useGuitarInput } from '../../lib/fretpilot/useGuitarInput'
+} from '../../lib/ai/theory'
+import { useGuitarInput } from '../../lib/ai/useGuitarInput'
 import type {
   AttemptRecord,
   CoachingFeedback,
@@ -24,13 +24,13 @@ import type {
   PhraseAnalysis,
   PracticeExercise,
   SessionRecord,
-} from '../../lib/fretpilot/types'
+} from '../../lib/ai/types'
 
 function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
 }
 
-export default function FretPilotApp() {
+export default function FretWikiAIApp() {
   const [difficulty, setDifficulty] = useState<Difficulty>('beginner')
   const [tuningId, setTuningId] = useState('standard')
   const [a4, setA4] = useState(440)
@@ -72,7 +72,7 @@ export default function FretPilotApp() {
 
   useEffect(() => {
     setHistory(loadSessions())
-    fetch('/api/fretpilot/coach')
+    fetch('/api/ai/coach')
       .then(r => r.json())
       .then((d: { configured?: boolean }) => setLlmConfigured(!!d.configured))
       .catch(() => setLlmConfigured(false))
@@ -148,7 +148,7 @@ export default function FretPilotApp() {
     if (!llmConfigured) return
     setCoachBusy(true)
     try {
-      const res = await fetch('/api/fretpilot/coach', {
+      const res = await fetch('/api/ai/coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ analysis: next, difficulty, exercise: ex }),
@@ -209,7 +209,7 @@ export default function FretPilotApp() {
           <img src="/logo.png" alt="" className="fp-logo" />
           <div>
             <p className="fp-kicker">NIXX Music</p>
-            <h1>FretPilot AI</h1>
+            <h1>FretWiki AI</h1>
             <p className="fp-sub">Listen → Understand → Teach → Try again</p>
           </div>
         </div>

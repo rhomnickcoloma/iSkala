@@ -588,10 +588,8 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
   const [error, setError] = useState<string | null>(null)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
-  const [showAddPicker, setShowAddPicker] = useState(false)
-  const [showPatches, setShowPatches] = useState(false)
   const [editingId, setEditingId] = useState<EffectId | null>(null)
-  const [drawerPopup, setDrawerPopup] = useState<'add' | 'patches' | 'io' | null>(null)
+  const [panelPopup, setPanelPopup] = useState<'add' | 'patches' | 'io' | null>(null)
   const drawerRef = useRef<HTMLDivElement>(null)
   const [skin, setSkinState] = useState<Skin>('classic')
   const classic = skin === 'classic'
@@ -607,7 +605,6 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
   const activePatchId = activePatch?.id ?? null
   const [tunerOpen, setTunerOpen] = useState(false)
   const [tunerReading, setTunerReading] = useState<{ note: string; cents: number; hz: number } | null>(null)
-  const [armedId, setArmedId] = useState<EffectId | null>(null)
   const [wires, setWires] = useState<ChainWire[]>([])
   const boardRef = useRef<HTMLDivElement>(null)
   const [loaded, setLoaded] = useState(false)
@@ -737,18 +734,11 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
   }, [isDrawer])
 
   useEffect(() => {
-    if (!editingId && !drawerPopup) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setEditingId(null); setDrawerPopup(null) } }
+    if (!editingId && !panelPopup) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setEditingId(null); setPanelPopup(null) } }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editingId, drawerPopup])
-
-  useEffect(() => {
-    const disarm = () => setArmedId(null)
-    window.addEventListener('pointerup', disarm)
-    return () => window.removeEventListener('pointerup', disarm)
-  }, [])
-
+  }, [editingId, panelPopup])
   const audioCtxRef = useRef<AudioContext | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const nodesRef = useRef<Record<string, AudioNode[]>>({})
@@ -1264,15 +1254,15 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
   const addEffect = (type: string) => {
     const fx = createEffect(type)
     setEffects(prev => [...prev, fx])
-    setShowAddPicker(false)
-    if (isDrawer) { setDrawerPopup(null); setEditingId(fx.id) }
+    setPanelPopup(null)
+    setEditingId(fx.id)
   }
   const moveEffect = (from: number, to: number) => { setEffects(prev => { const n = [...prev]; const [m] = n.splice(from, 1); n.splice(to, 0, m); return n }) }
 
   const onDragStart = (idx: number) => { setDragIdx(idx) }
   const onDragOver = (e: React.DragEvent, idx: number) => { e.preventDefault(); setDragOverIdx(idx) }
   const onDrop = (idx: number) => { if (dragIdx !== null && dragIdx !== idx) moveEffect(dragIdx, idx); setDragIdx(null); setDragOverIdx(null) }
-  const onDragEnd = () => { setDragIdx(null); setDragOverIdx(null); setArmedId(null) }
+  const onDragEnd = () => { setDragIdx(null); setDragOverIdx(null) }
 
   const handleClose = () => { stopAudio(); onClose?.() }
   const meterColor = (l: number) => l > 0.85 ? '#e74c3c' : l > 0.6 ? '#f39c12' : '#2ecc71'
@@ -1522,9 +1512,86 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
     </>
   )
 
+  const renderBlock = (fx: EffectInstance, idx: number) => {
+    const def = EFFECT_CATALOG[fx.type]
+    if (!def) return null
+    return (
+      <div
+        key={fx.id}
+        data-chain-node
+        data-chain-id={fx.id}
+        data-color={fx.enabled ? def.color : '#444'}
+        data-type={fx.type}
+        className={`fx-block ${fx.enabled ? 'on' : 'off'} ${dragIdx === idx ? 'dragging' : ''} ${dragOverIdx === idx && dragIdx !== idx ? 'drag-over' : ''}`}
+        style={{ '--pedal-color': def.color } as React.CSSProperties}
+        draggable
+        onDragStart={() => onDragStart(idx)} onDragOver={e => onDragOver(e, idx)} onDrop={() => onDrop(idx)} onDragEnd={onDragEnd}
+      >
+        <button className="fx-block-led" onClick={() => toggleEffect(fx.id)} aria-label={`${fx.enabled ? 'Bypass' : 'Enable'} ${def.label}`} aria-pressed={fx.enabled}><span className="fx-led" /></button>
+        <button className="fx-block-main" onClick={() => setEditingId(fx.id)} aria-label={`Edit ${def.label}`}>
+          {classic ? (
+            <span className="fx-mini-knobs" aria-hidden="true">
+              {def.params.slice(0, 3).map(p => (
+                <span key={p.key} className="fx-mini-knob" style={{ '--knob-angle': `${knobAngle(fx.params[p.key], p.min, p.max)}deg` } as React.CSSProperties} />
+              ))}
+            </span>
+          ) : (
+            <span className="fx-block-icon"><Icon name={def.icon} size={22} /></span>
+          )}
+          <span className="fx-block-name">{def.label}</span>
+          <span className="fx-block-sub">{fxSummary(fx, def)}</span>
+        </button>
+      </div>
+    )
+  }
+
+  const editing = effects.find(fx => fx.id === editingId)
+  const editingDef = editing ? EFFECT_CATALOG[editing.type] : undefined
+  const panelTitle = panelPopup === 'add' ? 'Add effect' : panelPopup === 'patches' ? 'Patches' : 'Audio settings'
+
+  // Docked popups sit just above the drawer so the fretboard stays visible
+  const renderPopups = (docked: boolean) => (
+    <>
+      {editing && editingDef && (
+        <div className={`fx-popup-backdrop ${docked ? 'docked' : ''} ${skinClass}`} onClick={() => setEditingId(null)}>
+          <div
+            data-type={editing.type}
+            className={`fx-popup fx-pedal ${editing.enabled ? 'on' : 'off'}`}
+            style={{ '--pedal-color': editingDef.color } as React.CSSProperties}
+            role="dialog" aria-modal="true" aria-label={`${editingDef.label} settings`}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="fx-pedal-top">
+              <button className="fx-pedal-switch" onClick={() => toggleEffect(editing.id)} aria-label={`${editing.enabled ? 'Bypass' : 'Enable'} ${editingDef.label}`} aria-pressed={editing.enabled}><span className="fx-led" /></button>
+              <h3><Icon name={editingDef.icon} size={14} />{editingDef.label}</h3>
+              <button className="fx-popup-remove" onClick={() => { removeEffect(editing.id); setEditingId(null) }} title="Remove from chain" aria-label={`Remove ${editingDef.label}`}><Icon name="trash" size={13} /></button>
+              <button className="fx-popup-close" onClick={() => setEditingId(null)} aria-label="Close"><Icon name="x" size={14} /></button>
+            </div>
+            {renderPedalControls(editing, editingDef)}
+            {renderStompFooter(editing, editingDef)}
+          </div>
+        </div>
+      )}
+
+      {panelPopup && (
+        <div className="fx-popup-backdrop" onClick={() => setPanelPopup(null)}>
+          <div className="fx-popup fx-popup-panel" role="dialog" aria-modal="true" aria-label={panelTitle} onClick={e => e.stopPropagation()}>
+            <div className="fx-popup-head">
+              <h3>{panelTitle}</h3>
+              <button className="fx-popup-close" onClick={() => setPanelPopup(null)} aria-label="Close"><Icon name="x" size={14} /></button>
+            </div>
+            {panelPopup === 'add' && renderAddPicker()}
+            {panelPopup === 'patches' && (
+              <EffectsPatches currentRig={{ effects, masterVolume, inputGain }} activePatchId={activePatchId} onActiveChange={onPatchSaved} onLoad={loadPatch} />
+            )}
+            {panelPopup === 'io' && renderAudioSettings()}
+          </div>
+        </div>
+      )}
+    </>
+  )
+
   if (isDrawer) {
-    const editing = effects.find(fx => fx.id === editingId)
-    const editingDef = editing ? EFFECT_CATALOG[editing.type] : undefined
     return (
       <>
         <div className={`fx-drawer ${skinClass} ${collapsed ? 'collapsed' : ''}`} ref={drawerRef} role="region" aria-label="Effects drawer">
@@ -1542,11 +1609,11 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
               <VMeter label="OUT" level={vu.out} clip={vu.outClip} />
             </div>
             <input type="range" min="0" max="100" value={masterVolume * 100} onChange={e => setMasterVolume(Number(e.target.value) / 100)} className="fx-mini-slider fx-drawer-volume" aria-label="Output volume" />
-            {renderPatchName(() => setDrawerPopup('patches'))}
+            {renderPatchName(() => setPanelPopup('patches'))}
             <div className="fx-drawer-actions">
               {renderSkinSwitch()}
-              <button className="fx-drawer-btn fx-drawer-patches-btn" onClick={() => setDrawerPopup('patches')} title="Patches"><Icon name="save" size={14} /><span className="fx-drawer-btn-label">Patches</span></button>
-              <button className="fx-drawer-btn" onClick={() => setDrawerPopup('io')} title="Input, output and sample rate" aria-label="Audio settings"><Icon name="settings" size={14} /></button>
+              <button className="fx-drawer-btn fx-drawer-patches-btn" onClick={() => setPanelPopup('patches')} title="Patches"><Icon name="save" size={14} /><span className="fx-drawer-btn-label">Patches</span></button>
+              <button className="fx-drawer-btn" onClick={() => setPanelPopup('io')} title="Input, output and sample rate" aria-label="Audio settings"><Icon name="settings" size={14} /></button>
               <button className="fx-drawer-btn" onClick={onOpenFullPage} title="Open the full effects page" aria-label="Open full effects page"><Icon name="maximize" size={14} /></button>
               <button className="fx-drawer-btn" onClick={onToggleCollapsed} aria-expanded={!collapsed} aria-label={collapsed ? 'Expand effects drawer' : 'Collapse effects drawer'} title={collapsed ? 'Show chain' : 'Hide chain (keeps playing)'}>
                 <Icon name={collapsed ? 'chevron-up' : 'chevron-down'} size={14} />
@@ -1566,81 +1633,15 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
               <div className="fx-drawer-chain" ref={boardRef}>
                 {renderChainSvg()}
                 <div className="fx-chain-endpoint" data-chain-node data-chain-id="in" data-color="#2ecc71"><div className="fx-chain-jack">IN</div></div>
-                {effects.map((fx, idx) => {
-                  const def = EFFECT_CATALOG[fx.type]
-                  if (!def) return null
-                  return (
-                    <div
-                      key={fx.id}
-                      data-chain-node
-                      data-chain-id={fx.id}
-                      data-color={fx.enabled ? def.color : '#444'}
-                      data-type={fx.type}
-                      className={`fx-block ${fx.enabled ? 'on' : 'off'} ${dragIdx === idx ? 'dragging' : ''} ${dragOverIdx === idx && dragIdx !== idx ? 'drag-over' : ''}`}
-                      style={{ '--pedal-color': def.color } as React.CSSProperties}
-                      draggable
-                      onDragStart={() => onDragStart(idx)} onDragOver={e => onDragOver(e, idx)} onDrop={() => onDrop(idx)} onDragEnd={onDragEnd}
-                    >
-                      <button className="fx-block-led" onClick={() => toggleEffect(fx.id)} aria-label={`${fx.enabled ? 'Bypass' : 'Enable'} ${def.label}`} aria-pressed={fx.enabled}><span className="fx-led" /></button>
-                      <button className="fx-block-main" onClick={() => setEditingId(fx.id)} aria-label={`Edit ${def.label}`}>
-                        {classic ? (
-                          <span className="fx-mini-knobs" aria-hidden="true">
-                            {def.params.slice(0, 3).map(p => (
-                              <span key={p.key} className="fx-mini-knob" style={{ '--knob-angle': `${knobAngle(fx.params[p.key], p.min, p.max)}deg` } as React.CSSProperties} />
-                            ))}
-                          </span>
-                        ) : (
-                          <span className="fx-block-icon"><Icon name={def.icon} size={22} /></span>
-                        )}
-                        <span className="fx-block-name">{def.label}</span>
-                        <span className="fx-block-sub">{fxSummary(fx, def)}</span>
-                      </button>
-                    </div>
-                  )
-                })}
+                {effects.map(renderBlock)}
                 <div className="fx-chain-endpoint" data-chain-node data-chain-id="out" data-color="#2ecc71"><div className="fx-chain-jack out">OUT</div></div>
-                <button className="fx-block-add" onClick={() => setDrawerPopup('add')} aria-label="Add effect" title="Add effect">+</button>
+                <button className="fx-block-add" onClick={() => setPanelPopup('add')} aria-label="Add effect" title="Add effect">+</button>
               </div>
             </>
           )}
         </div>
 
-        {editing && editingDef && (
-          <div className={`fx-popup-backdrop docked ${skinClass}`} onClick={() => setEditingId(null)}>
-            <div
-              data-type={editing.type}
-              className={`fx-popup fx-pedal ${editing.enabled ? 'on' : 'off'}`}
-              style={{ '--pedal-color': editingDef.color } as React.CSSProperties}
-              role="dialog" aria-modal="true" aria-label={`${editingDef.label} settings`}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="fx-pedal-top">
-                <button className="fx-pedal-switch" onClick={() => toggleEffect(editing.id)} aria-label={`${editing.enabled ? 'Bypass' : 'Enable'} ${editingDef.label}`} aria-pressed={editing.enabled}><span className="fx-led" /></button>
-                <h3><Icon name={editingDef.icon} size={14} />{editingDef.label}</h3>
-                <button className="fx-popup-remove" onClick={() => { removeEffect(editing.id); setEditingId(null) }} title="Remove from chain" aria-label={`Remove ${editingDef.label}`}><Icon name="trash" size={13} /></button>
-                <button className="fx-popup-close" onClick={() => setEditingId(null)} aria-label="Close"><Icon name="x" size={14} /></button>
-              </div>
-              {renderPedalControls(editing, editingDef)}
-              {renderStompFooter(editing, editingDef)}
-            </div>
-          </div>
-        )}
-
-        {drawerPopup && (
-          <div className="fx-popup-backdrop" onClick={() => setDrawerPopup(null)}>
-            <div className="fx-popup fx-popup-panel" role="dialog" aria-modal="true" aria-label={drawerPopup === 'add' ? 'Add effect' : drawerPopup === 'patches' ? 'Patches' : 'Audio settings'} onClick={e => e.stopPropagation()}>
-              <div className="fx-popup-head">
-                <h3>{drawerPopup === 'add' ? 'Add effect' : drawerPopup === 'patches' ? 'Patches' : 'Audio settings'}</h3>
-                <button className="fx-popup-close" onClick={() => setDrawerPopup(null)} aria-label="Close"><Icon name="x" size={14} /></button>
-              </div>
-              {drawerPopup === 'add' && renderAddPicker()}
-              {drawerPopup === 'patches' && (
-                <EffectsPatches currentRig={{ effects, masterVolume, inputGain }} activePatchId={activePatchId} onActiveChange={onPatchSaved} onLoad={loadPatch} />
-              )}
-              {drawerPopup === 'io' && renderAudioSettings()}
-            </div>
-          </div>
-        )}
+        {renderPopups(true)}
       </>
     )
   }
@@ -1678,78 +1679,32 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
         {/* Chain Header */}
         <div className="fx-section-title">
           <span>Signal Chain</span>
-          {renderPatchName(() => { setShowPatches(true); setShowAddPicker(false) })}
+          {renderPatchName(() => setPanelPopup('patches'))}
           <div className="fx-section-actions">
             {renderSkinSwitch()}
-            <button
-              className={`fx-patches-toggle ${showPatches ? 'active' : ''}`}
-              onClick={() => { setShowPatches(!showPatches); setShowAddPicker(false) }}
-              aria-expanded={showPatches}
-            >
+            <button className="fx-patches-toggle" onClick={() => setPanelPopup('patches')} aria-haspopup="dialog">
               <Icon name="save" size={12} /> Patches
             </button>
-            <button className="fx-add-btn" onClick={() => { setShowAddPicker(!showAddPicker); setShowPatches(false) }}>+ Add</button>
+            <button className="fx-add-btn" onClick={() => setPanelPopup('add')} aria-haspopup="dialog">+ Add</button>
             <button className="fx-reset-btn" onClick={resetRig} title="Restore the default chain">Reset</button>
           </div>
         </div>
 
-        {showPatches && (
-          <EffectsPatches
-            currentRig={{ effects, masterVolume, inputGain }}
-            activePatchId={activePatchId}
-            onActiveChange={onPatchSaved}
-            onLoad={loadPatch}
-          />
-        )}
-
-        {showAddPicker && renderAddPicker()}
-
-        {/* Pedalboard Chain */}
         <div className="fx-pedalboard" ref={boardRef}>
           {renderChainSvg()}
-
           <div className="fx-chain-endpoint" data-chain-node data-chain-id="in" data-color="#2ecc71"><div className="fx-chain-jack">IN</div></div>
-
-          {effects.map((fx, idx) => {
-            const def = EFFECT_CATALOG[fx.type]
-            if (!def) return null
-            return (
-                <div
-                  key={fx.id}
-                  data-chain-node
-                  data-chain-id={fx.id}
-                  data-color={fx.enabled ? def.color : '#444'}
-                  data-type={fx.type}
-                  className={`fx-pedal ${fx.enabled ? 'on' : 'off'} ${dragIdx === idx ? 'dragging' : ''} ${dragOverIdx === idx && dragIdx !== idx ? 'drag-over' : ''}`}
-                  style={{ '--pedal-color': def.color } as React.CSSProperties}
-                  draggable={armedId === fx.id}
-                  onDragStart={() => onDragStart(idx)} onDragOver={e => onDragOver(e, idx)} onDrop={() => onDrop(idx)} onDragEnd={onDragEnd}
-                >
-                  <div
-                    className="fx-pedal-top"
-                    onPointerDown={e => { if (!(e.target as HTMLElement).closest('button')) setArmedId(fx.id) }}
-                  >
-                    <span className="fx-pedal-drag" title="Drag to reorder">⋮⋮</span>
-                    <button className="fx-pedal-switch" onClick={() => toggleEffect(fx.id)} aria-label={`${fx.enabled ? 'Bypass' : 'Enable'} ${def.label}`} aria-pressed={fx.enabled}><span className="fx-led" /></button>
-                    <h3><Icon name={def.icon} size={14} />{def.label}</h3>
-                    <button className="fx-pedal-remove" onClick={() => removeEffect(fx.id)} title="Remove"><Icon name="x" size={12} /></button>
-                  </div>
-
-                  {renderPedalControls(fx, def)}
-                  {renderStompFooter(fx, def)}
-                </div>
-            )
-          })}
-
+          {effects.map(renderBlock)}
           <div className="fx-chain-endpoint" data-chain-node data-chain-id="out" data-color="#2ecc71"><div className="fx-chain-jack out">OUT</div></div>
+          <button className="fx-block-add" onClick={() => setPanelPopup('add')} aria-label="Add effect" title="Add effect">+</button>
         </div>
 
         {effects.length === 0 && <div className="fx-empty">No effects. Click <strong>+ Add</strong> to build your chain.</div>}
 
         <div className="fx-footer-hint">
-          <p><Icon name="plug" size="1em" className="inline-icon" />Connect your guitar via an audio interface. Drag a pedal by its title bar to reorder · Drag or scroll knobs to tweak · Changes apply live and are saved automatically.</p>
+          <p><Icon name="plug" size="1em" className="inline-icon" />Connect your guitar via an audio interface. Tap an effect to adjust it · Drag effects to reorder · Changes apply live and are saved automatically.</p>
         </div>
       </div>
+      {renderPopups(false)}
     </div>
   )
 }

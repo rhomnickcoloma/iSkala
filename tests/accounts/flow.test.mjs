@@ -86,7 +86,7 @@ const local = await page.evaluate(() => JSON.parse(localStorage.getItem('fretwik
 check('Signed out: the patch is in localStorage', local.length === 1 && local[0].name === 'Local Tone')
 
 await page.getByRole('button', { name: 'Sign in to use them on any device' }).click()
-const dialog = page.getByRole('dialog')
+const dialog = page.getByRole('dialog', { name: 'Sign in to FretWiki' })
 check('Sign-in dialog says the browser patch will move', (await dialog.innerText()).includes('The patch saved in this browser will move into your account'))
 await page.screenshot({ path: 'test-results/auth-dialog.png' })
 

@@ -1,5 +1,6 @@
 import type { SessionRecord } from './types'
 
+// Pre-rename key, kept so existing practice history still loads
 const KEY = 'fretpilot_sessions_v1'
 const MAX = 20
 

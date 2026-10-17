@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import type { CoachingFeedback, Difficulty, PhraseAnalysis, PracticeExercise } from '../../../lib/fretpilot/types'
+import type { CoachingFeedback, Difficulty, PhraseAnalysis, PracticeExercise } from '../../../lib/ai/types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Structured analysis is required.' }, { status: 400 })
   }
 
-  const system = `You are FretPilot, a guitar coach. You only talk about the structured analysis you are given. Never invent notes, chords, MIDI, or tempos that are not in the JSON. If the analysis is uncertain, say so. Modes are not just rotations of a parent major scale: explain them from the tonal center and characteristic interval, and mention the parent collection only to contrast. Write six short paragraphs matching keys played, meaning, worked, improve, exercise, listenFor. Practical, specific, no hype.`
+  const system = `You are FretWiki AI, a guitar coach. You only talk about the structured analysis you are given. Never invent notes, chords, MIDI, or tempos that are not in the JSON. If the analysis is uncertain, say so. Modes are not just rotations of a parent major scale: explain them from the tonal center and characteristic interval, and mention the parent collection only to contrast. Write six short paragraphs matching keys played, meaning, worked, improve, exercise, listenFor. Practical, specific, no hype.`
 
   const payload = {
     model: process.env.OPENAI_MODEL || 'gpt-4o-mini',

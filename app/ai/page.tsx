@@ -1,18 +1,18 @@
 import type { Metadata } from 'next'
-import FretPilotApp from '../components/fretpilot/FretPilotApp'
+import FretWikiAIApp from '../components/ai/FretWikiAIApp'
 
 export const metadata: Metadata = {
-  title: 'FretPilot AI — Guitar Coach That Listens',
+  title: 'FretWiki AI — Guitar Coach That Listens',
   description:
     'Play a phrase, see it on the fretboard, and get a guitar coach that explains chord tones, modes, and a next exercise. Microphone audio stays in the browser.',
-  alternates: { canonical: '/fretpilot' },
+  alternates: { canonical: '/ai' },
   openGraph: {
-    title: 'FretPilot AI | FretWiki',
+    title: 'FretWiki AI — Guitar Coach That Listens',
     description: 'An in-browser guitar coach: listen, analyze, teach, try again.',
-    url: '/fretpilot',
+    url: '/ai',
   },
 }
 
-export default function FretPilotPage() {
-  return <FretPilotApp />
+export default function FretWikiAIPage() {
+  return <FretWikiAIApp />
 }
