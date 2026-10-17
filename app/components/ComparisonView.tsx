@@ -11,6 +11,8 @@ import {
 } from '../lib/scales'
 import { useInstrument } from '../context/InstrumentContext'
 import { Icon } from './Icons'
+import PageTitle, { InstrumentSwitch } from './PageTitle'
+import BgDecoration from './BgDecoration'
 
 type DisplayMode = 'notes' | 'intervals' | 'none'
 
@@ -19,11 +21,7 @@ interface SlideConnection {
   to: { stringIndex: number; fret: number; x: number; y: number }
 }
 
-interface ComparisonViewProps {
-  onClose: () => void
-}
-
-export default function ComparisonView({ onClose }: ComparisonViewProps) {
+export default function ComparisonView() {
   const { instrument } = useInstrument()
   const tuning = instrument.tuning
   const STRING_COUNT = instrument.stringCount
@@ -192,10 +190,18 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
   }
 
   return (
-    <div className="tool-page">
-      <div className="comparison-modal single-fretboard tool-panel">
-        <div className="comparison-header">
-          <h1><span className="label-long">Scale Comparison</span><span className="label-short">Compare</span></h1>
+    <>
+      <BgDecoration />
+      <div className="container">
+      <PageTitle
+        icon={<Icon name="scale" size="0.9em" className="inline-icon" />}
+        title="Scale Comparison"
+        subtitle={`Compare two scales side by side on the ${instrument.name.toLowerCase()} fretboard`}
+        action={<InstrumentSwitch />}
+      />
+      <main>
+      <div className="fretboard-container comparison-panel">
+        <div className="comparison-toolbar">
           <div className="comparison-header-controls">
             <div className="comparison-display-modes">
               <button
@@ -229,49 +235,9 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
               </button>
             )}
           </div>
-          <button className="close-btn" onClick={onClose} aria-label="Back to FretWiki" title="Back to FretWiki"><Icon name="house" size={18} /></button>
         </div>
         
         <div className="comparison-single-content">
-          {/* Centered Logo with Sound Wave */}
-          <div className="comparison-logo-wrapper">
-            <div className="comparison-logo">
-              {/* Sound wave bars */}
-              <div className="sound-wave">
-                {Array.from({ length: 40 }, (_, i) => (
-                  <div 
-                    key={i} 
-                    className="wave-bar"
-                    style={{ 
-                      animationDelay: `${(i * 0.05).toFixed(2)}s`,
-                      height: `${(20 + Math.sin(i * 0.3) * 15 + ((i * 37) % 11)).toFixed(1)}%`
-                    }}
-                  />
-                ))}
-              </div>
-              <img
-                src="/logo.png" 
-                alt="FretWiki" 
-                width={60} 
-                height={60}
-                className="comparison-logo-img"
-              />
-              {/* Sound wave bars (right side) */}
-              <div className="sound-wave right">
-                {Array.from({ length: 40 }, (_, i) => (
-                  <div 
-                    key={i} 
-                    className="wave-bar"
-                    style={{ 
-                      animationDelay: `${((40 - i) * 0.05).toFixed(2)}s`,
-                      height: `${(20 + Math.sin(i * 0.3) * 15 + ((i * 37) % 11)).toFixed(1)}%`
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
           {/* Scale Selectors */}
           <div className="scale-selectors">
             {/* Scale A */}
@@ -714,6 +680,8 @@ export default function ComparisonView({ onClose }: ComparisonViewProps) {
           </div>
         </div>
       </div>
-    </div>
+      </main>
+      </div>
+    </>
   )
 }

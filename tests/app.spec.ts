@@ -166,7 +166,7 @@ test.describe('Backing Track', () => {
   test('page loads with chord player UI', async ({ page }) => {
     await page.goto('/backing-track')
     await expect(page.locator('.chord-player-modal')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('.chord-player-header h1')).toContainText('Chord Player')
+    await expect(page.locator('.page-title h1')).toContainText('Backing Track')
   })
 
   test('style tabs: 5 genres, switching works', async ({ page }) => {
@@ -348,12 +348,13 @@ test.describe('Backing Track', () => {
     await expect(loopBtn).not.toHaveClass(/active/)
   })
 
-  test('close button navigates away', async ({ page }) => {
+  test('site header logo navigates home', async ({ page }) => {
+    await setInstrumentCookie(page)
     await page.goto('/backing-track')
     await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
-    await page.locator('.chord-player-header .close-btn').click()
-    await page.waitForTimeout(1000)
-    await expect(page.locator('.chord-player-modal')).not.toBeVisible()
+    await page.locator('.site-header .brand').click()
+    await expect(page).toHaveURL(/\/guitar/)
+    await expect(page.locator('.chord-player-modal')).toHaveCount(0)
   })
 
   test('no console errors on backing track page', async ({ page }) => {
@@ -560,7 +561,7 @@ test.describe('Effects patches', () => {
   test('account button stays hidden without Supabase config', async ({ page }) => {
     await setInstrumentCookie(page)
     await page.goto('/guitar')
-    await expect(page.locator('.brand-name')).toBeVisible()
+    await expect(page.locator('.brand-logo')).toBeVisible()
     await expect(page.locator('.account-btn')).toHaveCount(0)
   })
 
@@ -666,6 +667,52 @@ test.describe('Effects drawer', () => {
     await drawer.getByRole('button', { name: 'Turn off audio' }).click()
     await expect(drawer.getByRole('button', { name: 'Unmute' })).toBeVisible()
     await expect(drawer.getByRole('button', { name: 'Turn off audio' })).toHaveCount(0)
+  })
+})
+
+test.describe('Site header', () => {
+  for (const route of ['/guitar', '/effects', '/compare-scales', '/backing-track', '/about']) {
+    test(`is on ${route} with logo and profile`, async ({ page }) => {
+      await setInstrumentCookie(page)
+      await page.goto(route)
+      const header = page.locator('.site-header')
+      await expect(header.locator('.brand-name')).toHaveText('FretWiki')
+      await header.getByRole('button', { name: 'Profile' }).click()
+      await expect(page.locator('.profile-pop')).toHaveText('We are working on it. Please stay tuned!')
+    })
+  }
+
+  test('places the instrument switch inline in the scale page title', async ({ page }) => {
+    await setInstrumentCookie(page)
+    await page.goto('/guitar')
+    await expect(page.locator('.site-header .instrument-switch-btn')).toHaveCount(0)
+    await expect(page.locator('.page-title-row .instrument-switch-btn')).toBeVisible()
+  })
+
+  test('menu links open home, compare and backing track and mark the current page', async ({ page }) => {
+    await setInstrumentCookie(page)
+    await page.goto('/guitar')
+    const nav = page.getByRole('navigation', { name: 'Tools' })
+    await expect(nav.getByRole('link', { name: /Home/ })).toHaveAttribute('aria-current', 'page')
+    await nav.getByRole('link', { name: /Compare/ }).click()
+    await expect(page).toHaveURL(/\/compare-scales$/)
+    await expect(nav.getByRole('link', { name: /Compare/ })).toHaveAttribute('aria-current', 'page')
+    await nav.getByRole('link', { name: /Backing/ }).click()
+    await expect(page).toHaveURL(/\/backing-track$/)
+    await expect(page.locator('.chord-player-modal')).toBeVisible()
+    await expect(nav.getByRole('link', { name: /Backing/ })).toHaveAttribute('aria-current', 'page')
+    await nav.getByRole('link', { name: /Home/ }).click()
+    await expect(page).toHaveURL(/\/guitar(\?|$)/)
+  })
+
+  test('switching instrument on the compare page stays on the page', async ({ page }) => {
+    await setInstrumentCookie(page)
+    await page.goto('/compare-scales')
+    await page.locator('.page-title .instrument-switch-btn').click()
+    await page.locator('.instrument-col-card', { hasText: /Ukulele/ }).first().click()
+    await expect(page).toHaveURL(/\/compare-scales$/)
+    await expect(page.locator('.page-title .instrument-switch-btn')).toHaveText('Ukulele')
+    await expect(page.locator('.comparison-panel .scale-selectors')).toBeVisible()
   })
 })
 

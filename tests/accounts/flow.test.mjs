@@ -73,8 +73,8 @@ await page.route(`${SB}/**`, async route => {
 })
 
 await page.goto(`${APP}/effects`)
-const signInBtn = page.locator('.fx-header .account-btn', { hasText: 'Sign in' })
-check('Effects header shows a Sign in button when accounts are configured', await shows(signInBtn))
+const profileBtn = page.locator('.site-header .profile-btn')
+check('Signed out: the site header shows the profile placeholder', await shows(profileBtn))
 
 await page.getByRole('button', { name: 'Patches' }).click()
 check('Signed out: patches are saved in this browser', (await page.locator('.fx-patches-status').innerText()).includes('saved in this browser'))
@@ -100,7 +100,7 @@ check('Browser patches were imported into the account', db.imported?.length === 
 check('Browser copy cleared after import', (await page.evaluate(() => localStorage.getItem('fretwiki-patches-v1'))) === null)
 check('Returned to the page the user started on', page.url() === `${APP}/effects`)
 
-const avatar = page.locator('.fx-header .account-btn.signed-in')
+const avatar = page.locator('.site-header .account-btn.signed-in')
 check('Header shows the signed-in avatar', await shows(avatar))
 await page.getByRole('button', { name: 'Patches' }).click()
 check('Imported patch is listed from the account', await shows(page.locator('.fx-patch-name', { hasText: 'Local Tone' })))
@@ -121,12 +121,12 @@ const menu = await page.locator('.account-menu').innerText()
 check('Account menu shows name and email', menu.includes('Nixx Player') && menu.includes('nixx@example.com'))
 await page.screenshot({ path: 'test-results/account-menu.png' })
 await page.getByRole('menuitem', { name: 'Sign out' }).click()
-check('Sign out returns to the Sign in button', await shows(signInBtn))
+check('Sign out returns to the profile placeholder', await shows(profileBtn))
 await page.getByRole('button', { name: 'Patches' }).click()
 check('After sign-out the panel shows the (empty) browser list', await shows(page.locator('.fx-patches-empty')))
 
 await page.goto(`${APP}/guitar`)
-check('Main header also shows the account button', await shows(page.locator('header .account-btn')))
+check('Scale pages share the site header', await shows(page.locator('.site-header .profile-btn')))
 
 const errPage = await browser.newPage()
 await errPage.goto(`${APP}/auth/callback?error=access_denied&error_description=User+cancelled+login&next=/effects`)

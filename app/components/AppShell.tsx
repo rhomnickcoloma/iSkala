@@ -1,26 +1,28 @@
 'use client'
 
 import Fretboard from './Fretboard'
-import Header from './Header'
+import PageTitle, { InstrumentSwitch } from './PageTitle'
 import CompareButton from './CompareButton'
 import BackingTrackButton from './BackingTrackButton'
-import InstrumentSelector from './InstrumentSelector'
 import VersionInfo from './VersionInfo'
+import { useInstrument } from '../context/InstrumentContext'
+import { Icon } from './Icons'
+import BgDecoration from './BgDecoration'
 
 export default function AppShell() {
+  const { instrument } = useInstrument()
+
   return (
     <>
-      <div className="bg-decoration">
-        <span className="bg-note">♪</span>
-        <span className="bg-note">♫</span>
-        <span className="bg-note">♩</span>
-        <span className="bg-note">♬</span>
-        <span className="bg-note">♪</span>
-        <span className="bg-note">♫</span>
-      </div>
+      <BgDecoration />
 
       <div className="container">
-        <Header />
+        <PageTitle
+          icon={<Icon name={instrument.icon} size="0.9em" className="inline-icon" />}
+          title={`${instrument.name} Scale Reference`}
+          subtitle="Interactive fretboard to learn scales in any key"
+          action={<InstrumentSwitch />}
+        />
         <main>
           <Fretboard />
         </main>
@@ -31,7 +33,6 @@ export default function AppShell() {
         <BackingTrackButton />
       </div>
 
-      <InstrumentSelector />
       <VersionInfo />
     </>
   )

@@ -3,6 +3,9 @@ import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { AuthProvider } from './context/AuthContext'
 import { EffectsDrawerProvider } from './context/EffectsDrawerContext'
+import { InstrumentProvider } from './context/InstrumentContext'
+import SiteHeader from './components/SiteHeader'
+import InstrumentSelector from './components/InstrumentSelector'
 import './globals.css'
 
 const SITE_URL = 'https://fretwiki.com'
@@ -135,7 +138,11 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning>
         <AuthProvider>
-          <EffectsDrawerProvider>{children}</EffectsDrawerProvider>
+          <InstrumentProvider>
+            <SiteHeader />
+            <EffectsDrawerProvider>{children}</EffectsDrawerProvider>
+            <InstrumentSelector />
+          </InstrumentProvider>
         </AuthProvider>
         <Analytics />
         <SpeedInsights />

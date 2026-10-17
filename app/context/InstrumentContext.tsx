@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { InstrumentConfig, INSTRUMENTS, DEFAULT_INSTRUMENT_ID, getInstrument } from '../lib/instruments'
 
 interface InstrumentContextType {
@@ -20,6 +20,8 @@ const InstrumentContext = createContext<InstrumentContextType>({
   initialized: false,
 })
 
+const COOKIE = 'fretwiki_instrument'
+
 function getCookie(name: string): string | undefined {
   if (typeof document === 'undefined') return undefined
   const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
@@ -31,51 +33,43 @@ function setCookie(name: string, value: string, days: number = 365) {
   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`
 }
 
-interface ProviderProps {
-  children: ReactNode
-  initialInstrument?: string
-  skipRouting?: boolean
-}
-
-export function InstrumentProvider({ children, initialInstrument, skipRouting }: ProviderProps) {
+// Lives in the root layout so the site header can switch instruments on every page.
+// On `/` and `/<instrument>` the URL is the source of truth; elsewhere the choice is made in place.
+export function InstrumentProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
-  const [instrumentId, setInstrumentIdState] = useState<string>(
-    initialInstrument && INSTRUMENTS[initialInstrument] ? initialInstrument : DEFAULT_INSTRUMENT_ID
-  )
+  const pathname = usePathname()
+  const routeId = INSTRUMENTS[pathname.slice(1)] ? pathname.slice(1) : null
+  const [savedId, setSavedId] = useState<string>(DEFAULT_INSTRUMENT_ID)
   const [showSelector, setShowSelector] = useState(false)
   const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
-    if (initialInstrument && INSTRUMENTS[initialInstrument]) {
-      setInstrumentIdState(initialInstrument)
-      setCookie('fretwiki_instrument', initialInstrument)
-      setInitialized(true)
-      return
-    }
-
-    const saved = getCookie('fretwiki_instrument')
-    if (saved && INSTRUMENTS[saved]) {
-      setInstrumentIdState(saved)
-      if (!skipRouting) {
-        router.replace(`/${saved}`)
-      }
-    } else if (!skipRouting) {
-      setShowSelector(true)
-    }
+    const saved = getCookie(COOKIE)
+    if (saved && INSTRUMENTS[saved]) setSavedId(saved)
     setInitialized(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const setInstrumentId = (id: string) => {
-    setInstrumentIdState(id)
-    setCookie('fretwiki_instrument', id)
-    setShowSelector(false)
-    if (!skipRouting) {
-      router.push(`/${id}`)
+  useEffect(() => {
+    if (routeId) {
+      setSavedId(routeId)
+      setCookie(COOKIE, routeId)
+      return
     }
+    if (pathname !== '/') return
+    const saved = getCookie(COOKIE)
+    if (saved && INSTRUMENTS[saved]) router.replace(`/${saved}`)
+    else setShowSelector(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, routeId])
+
+  const setInstrumentId = (id: string) => {
+    setSavedId(id)
+    setCookie(COOKIE, id)
+    setShowSelector(false)
+    if (routeId || pathname === '/') router.push(`/${id}`)
   }
 
-  const instrument = getInstrument(instrumentId)
+  const instrument = getInstrument(routeId ?? savedId)
 
   return (
     <InstrumentContext.Provider value={{ instrument, setInstrumentId, showSelector, setShowSelector, initialized }}>

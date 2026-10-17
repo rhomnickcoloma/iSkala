@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { INSTRUMENTS } from '../lib/instruments'
-import { InstrumentProvider } from '../context/InstrumentContext'
 import AppShell from '../components/AppShell'
 
 interface Props {
@@ -33,9 +32,5 @@ export default async function InstrumentPage({ params }: Props) {
     notFound()
   }
 
-  return (
-    <InstrumentProvider initialInstrument={instrument}>
-      <AppShell />
-    </InstrumentProvider>
-  )
+  return <AppShell />
 }

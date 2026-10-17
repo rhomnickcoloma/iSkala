@@ -6,7 +6,6 @@ import { Icon, type IconName } from './Icons'
 import { autoCorrelate, getClosestNote } from '../lib/pitch'
 import type { Patch } from '../lib/patches'
 import EffectsPatches from './EffectsPatches'
-import AccountButton from './AccountButton'
 
 interface ChainWire { id: string; d: string; x1: number; y1: number; x2: number; y2: number; from: string; to: string }
 
@@ -518,7 +517,6 @@ function sanitizeEffects(raw: unknown): EffectInstance[] | null {
 // ─── Component ───
 
 interface EffectsPageProps {
-  onClose?: () => void
   /** 'drawer' shows a compact chain under the fretboard; pedals open in a popup for editing */
   variant?: 'page' | 'drawer'
   collapsed?: boolean
@@ -569,7 +567,7 @@ function fxSummary(fx: EffectInstance, def: EffectDef): string {
   return `${p.label} ${p.displayFn ? p.displayFn(fx.params[p.key]) : fx.params[p.key]}${p.unit ? ` ${p.unit}` : ''}`
 }
 
-export default function EffectsPage({ onClose, variant = 'page', collapsed = false, onToggleCollapsed, onOpenFullPage }: EffectsPageProps) {
+export default function EffectsPage({ variant = 'page', collapsed = false, onToggleCollapsed, onOpenFullPage }: EffectsPageProps) {
   const isDrawer = variant === 'drawer'
   const [effects, setEffects] = useState<EffectInstance[]>(defaultChain)
 
@@ -1264,7 +1262,6 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
   const onDrop = (idx: number) => { if (dragIdx !== null && dragIdx !== idx) moveEffect(dragIdx, idx); setDragIdx(null); setDragOverIdx(null) }
   const onDragEnd = () => { setDragIdx(null); setDragOverIdx(null) }
 
-  const handleClose = () => { stopAudio(); onClose?.() }
   const meterColor = (l: number) => l > 0.85 ? '#e74c3c' : l > 0.6 ? '#f39c12' : '#2ecc71'
 
   const renderIoBar = () => (
@@ -1649,18 +1646,7 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
   return (
     <div className="fx-overlay">
       <div className={`fx-modal ${skinClass}`}>
-        <div className="fx-header">
-          <div className="fx-header-left">
-            <h1>Guitar Effects</h1>
-            <span className="fx-header-sub">Signal Processor</span>
-          </div>
-          <div className="fx-header-actions">
-            <AccountButton />
-            <button className="close-btn fx-home-btn" onClick={handleClose} aria-label="Back to FretWiki" title="Back to FretWiki">
-              <Icon name="house" size={18} />
-            </button>
-          </div>
-        </div>
+        <h1 className="sr-only">Guitar Effects</h1>
 
         {error && <div className="fx-error"><p><Icon name="alert" size="1em" className="inline-icon" />{error}</p><p className="fx-error-hint">Check microphone access and audio input device.</p></div>}
 

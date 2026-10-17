@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Icon } from './Icons'
+import PageTitle from './PageTitle'
+import BgDecoration from './BgDecoration'
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const
 
@@ -179,9 +181,6 @@ interface Section {
   chords: string[]
 }
 
-interface BackingTrackPageProps {
-  onClose: () => void
-}
 
 function decomposeChord(chord: string): { root: string; accidental: string; type: string } {
   if (!chord) return { root: 'C', accidental: 'natural', type: 'major' }
@@ -204,7 +203,7 @@ const SESSION_STORAGE_KEY = 'fretwiki-backing-v1'
 let sectionCounter = 0
 function newSectionId() { return `s${Date.now()}_${sectionCounter++}` }
 
-export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
+export default function BackingTrackPage() {
   const [selectedKey, setSelectedKey] = useState<string>('C')
   const [style, setStyle] = useState<Style>('pop')
   const [bpm, setBpm] = useState<number>(120)
@@ -648,11 +647,6 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
     if (!isPlaying) setBpm(STYLES[s].defaultBpm)
   }
 
-  const handleClose = () => {
-    if (isPlaying) togglePlayback()
-    onClose()
-  }
-
   // Map flat chord index to section/chord position for playback highlighting
   const getGlobalIdx = (sectionIdx: number, chordIdx: number): number => {
     let idx = 0
@@ -667,14 +661,16 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
     : 0
 
   return (
-    <div className="tool-page">
-      <div className="chord-player-modal tool-panel">
-        {/* Header */}
-        <div className="chord-player-header">
-          <h1>Chord Player</h1>
-          <button className="close-btn" onClick={handleClose} aria-label="Back to FretWiki" title="Back to FretWiki"><Icon name="house" size={18} /></button>
-        </div>
-
+    <>
+      <BgDecoration />
+      <div className="container">
+      <PageTitle
+        icon={<Icon name="music" size="0.9em" className="inline-icon" />}
+        title="Backing Track"
+        subtitle="Build a chord progression and jam over drums and chords in any key"
+      />
+      <main>
+      <div className="fretboard-container chord-player-modal">
         {/* Style & Tempo */}
         <div className="chord-player-topbar">
           <div className="style-tabs">
@@ -884,6 +880,8 @@ export default function BackingTrackPage({ onClose }: BackingTrackPageProps) {
           </div>
         </div>
       </div>
-    </div>
+      </main>
+      </div>
+    </>
   )
 }
