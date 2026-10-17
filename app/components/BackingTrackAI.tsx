@@ -22,16 +22,21 @@ export default function BackingTrackAI({ onSpec, active = true }: Props) {
   const [spec, setSpec] = useState<BackingSpec | null>(null)
   const [log, setLog] = useState<{ role: 'you' | 'ai'; text: string }[]>([])
   const engine = useBackingEngine()
+  const stop = engine.stop
 
   useEffect(() => {
-    if (!active) engine.stop()
-  }, [active, engine.stop])
+    if (!active) stop()
+  }, [active, stop])
 
   const apply = async (next: BackingSpec) => {
     setSpec(next)
     onSpec?.(next)
     setLog(prev => [...prev, { role: 'ai', text: `${next.title} · ${next.chords.join(' – ')} · ${next.bpm} BPM. ${next.explanation}` }])
-    await engine.play(next)
+    try {
+      await engine.play(next)
+    } catch {
+      // Web Audio may be blocked; the spec is still shown.
+    }
   }
 
   const generate = async (text: string) => {
@@ -40,16 +45,31 @@ export default function BackingTrackAI({ onSpec, active = true }: Props) {
     setBusy(true)
     setLog(prev => [...prev, { role: 'you', text: q }])
     const local = generateBackingFromPrompt(q)
+    await apply(local)
     try {
       const res = await fetch('/api/fretpilot/backing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: q }),
+        signal: AbortSignal.timeout(6000),
       })
-      const data = await res.json() as { spec?: BackingSpec }
-      await apply(data.spec?.chords?.length ? data.spec : local)
+      const data = await res.json() as { spec?: BackingSpec; source?: string }
+      if (data.source === 'llm' && data.spec?.chords?.length) {
+        setSpec(data.spec)
+        onSpec?.(data.spec)
+        setLog(prev => {
+          const next = [...prev]
+          const lastAi = [...next].reverse().findIndex(m => m.role === 'ai')
+          const idx = lastAi === -1 ? -1 : next.length - 1 - lastAi
+          const line = { role: 'ai' as const, text: `${data.spec!.title} · ${data.spec!.chords.join(' – ')} · ${data.spec!.bpm} BPM. ${data.spec!.explanation}` }
+          if (idx >= 0) next[idx] = line
+          else next.push(line)
+          return next
+        })
+        await engine.play(data.spec)
+      }
     } catch {
-      await apply(local)
+      // Local parse already applied.
     } finally {
       setBusy(false)
     }

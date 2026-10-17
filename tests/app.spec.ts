@@ -16,7 +16,7 @@ async function setInstrumentCookie(page: Page) {
 async function openClassicBacking(page: Page) {
   await page.goto('/backing-track')
   await page.waitForSelector('.chord-player-modal', { timeout: 10000 })
-  await page.getByRole('tab', { name: 'Classic' }).click()
+  await page.locator('.bt-mode-tab', { hasText: 'Classic' }).click()
   await expect(page.locator('.chord-player-topbar')).toBeVisible()
 }
 
@@ -180,7 +180,7 @@ test.describe('Backing Track', () => {
     await expect(page.locator('.bt-ai-cell').nth(0)).toHaveText('Am', { timeout: 10000 })
     await expect(page.locator('.bt-ai-cell').nth(1)).toHaveText('D7')
     await expect(page.locator('.bt-ai-line.ai').first()).toContainText(/Am/)
-    await page.getByRole('tab', { name: 'Classic' }).click()
+    await page.locator('.bt-mode-tab', { hasText: 'Classic' }).click()
     const texts = await page.locator('.chord-slot-name').allTextContents()
     expect(texts).toContain('Am')
     expect(texts).toContain('D7')
@@ -491,7 +491,7 @@ test.describe('Regressions', () => {
     await openClassicBacking(page)
     await page.locator('.cp-select').selectOption('G')
     await page.reload()
-    await page.getByRole('tab', { name: 'Classic' }).click()
+    await page.locator('.bt-mode-tab', { hasText: 'Classic' }).click()
     await expect(page.locator('.cp-select')).toHaveValue('G')
   })
 

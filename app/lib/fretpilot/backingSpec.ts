@@ -1,4 +1,4 @@
-import { parseChordSymbol, parseProgression } from './theory'
+import { parseChordSymbol } from './theory'
 
 export type BackingStyle = 'funk' | 'fusion' | 'jazz' | 'blues' | 'rock' | 'pop' | 'reggae'
 

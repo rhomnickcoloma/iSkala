@@ -222,21 +222,36 @@ export default function FretPilotApp() {
     setChatBusy(true)
     setChatLog(prev => [...prev, { role: 'you', text: prompt }])
     const local = generateBackingFromPrompt(prompt)
+    applyBackingSpec(local)
+    audioRef.current?.pause()
+    setBackingPlaying(false)
+    await backing.play(local)
     try {
       const res = await fetch('/api/fretpilot/backing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
+        signal: AbortSignal.timeout(6000),
       })
-      const data = await res.json() as { spec?: BackingSpec }
-      const spec = data.spec && data.spec.chords?.length ? data.spec : local
-      applyBackingSpec(spec)
-      audioRef.current?.pause()
-      setBackingPlaying(false)
-      await backing.play(spec)
+      const data = await res.json() as { spec?: BackingSpec; source?: string }
+      if (data.source === 'llm' && data.spec?.chords?.length) {
+        setGeneratedSpec(data.spec)
+        setChordInput(data.spec.chords.join(' '))
+        setUserKey(data.spec.key)
+        setTempo(data.spec.bpm)
+        setChatLog(prev => {
+          const next = [...prev]
+          const last = [...next].reverse().findIndex(m => m.role === 'coach')
+          const idx = last === -1 ? -1 : next.length - 1 - last
+          const line = { role: 'coach' as const, text: `${data.spec!.title} · ${data.spec!.chords.join(' – ')} · ${data.spec!.bpm} BPM. ${data.spec!.explanation}` }
+          if (idx >= 0) next[idx] = line
+          else next.push(line)
+          return next
+        })
+        await backing.play(data.spec)
+      }
     } catch {
-      applyBackingSpec(local)
-      await backing.play(local)
+      // Local parse already applied.
     } finally {
       setChatBusy(false)
     }
