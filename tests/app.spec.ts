@@ -499,7 +499,8 @@ test.describe('Regressions', () => {
 
   test('effects page: knobs are keyboard accessible, tuner toggles', async ({ page }) => {
     await page.goto('/effects')
-    await expect(page.locator('.fx-sample-rate, .fx-rate-select')).toHaveValue('48000')
+    // Auto (device native rate) avoids resampling latency
+    await expect(page.locator('.fx-sample-rate, .fx-rate-select')).toHaveValue('0')
     await page.locator('.fx-pedalboard .fx-block-main').first().click()
     const knob = page.locator('.fx-popup .fx-rotary').first()
     await expect(knob).toHaveAttribute('role', 'slider')
@@ -507,6 +508,24 @@ test.describe('Regressions', () => {
     await knob.focus()
     await page.keyboard.press('ArrowUp')
     await expect(knob).not.toHaveAttribute('aria-valuenow', String(before))
+  })
+
+  test('compressor worklet adds no lookahead delay', async ({ page }) => {
+    await page.goto('/about')
+    const delay = await page.evaluate(async () => {
+      const ctx = new OfflineAudioContext(1, 4800, 48000)
+      await ctx.audioWorklet.addModule('/worklets/fx-compressor.js')
+      const buf = ctx.createBuffer(1, 4800, 48000)
+      buf.getChannelData(0)[100] = 0.5
+      const src = ctx.createBufferSource(); src.buffer = buf
+      const comp = new AudioWorkletNode(ctx, 'fx-compressor')
+      src.connect(comp); comp.connect(ctx.destination); src.start()
+      const out = (await ctx.startRendering()).getChannelData(0)
+      let peak = 0
+      for (let i = 0; i < out.length; i++) if (Math.abs(out[i]) > Math.abs(out[peak])) peak = i
+      return peak - 100
+    })
+    expect(delay).toBe(0)
   })
 
   test('every page has its own canonical URL', async ({ page }) => {
@@ -742,11 +761,11 @@ test.describe('NIXX presets', () => {
   const PRESETS: [string, string[]][] = [
     ['Clean', ['Noise Gate', 'Compressor', 'Amplifier', 'Reverb']],
     ['Clean Sky', ['Compressor', 'Amplifier', 'Cabinet', 'Chorus', 'Delay', 'Reverb']],
-    ['Funk', ['Noise Gate', 'Compressor', 'Auto Wah', 'Amplifier', 'Cabinet', 'Phaser', 'Reverb']],
-    ['Blues OD', ['Noise Gate', 'Compressor', 'Amplifier']],
+    ['Funk', ['Noise Gate', 'Auto Wah', 'Compressor', 'Amplifier', 'Cabinet', 'Phaser', 'Reverb']],
+    ['Blues OD', ['Compressor', 'Noise Gate', 'Amplifier', 'Cabinet']],
     ['Butter OD', ['Noise Gate', 'Compressor', 'Distortion', 'Amplifier', 'Delay', 'Reverb']],
     ['Drive', ['Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
-    ['Lead', ['Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
+    ['Lead', ['Compressor', 'Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', 'Delay', 'Reverb', 'Delay']],
     ['Metal', ['Noise Gate', 'Distortion', 'Amplifier', 'Cabinet', '6-Band EQ']],
   ]
 

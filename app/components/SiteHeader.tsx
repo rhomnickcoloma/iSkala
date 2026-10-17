@@ -47,7 +47,7 @@ export default function SiteHeader() {
 
   return (
     <header className="site-header">
-      <Link href="/" className="brand" aria-label="FretWiki home">
+      <Link href={`/${instrument.id}`} className="brand" aria-label="FretWiki home">
         <img src="/logo.png" alt="" className="brand-logo" />
         <span className="brand-text">
           <span className="brand-name">FretWiki</span>

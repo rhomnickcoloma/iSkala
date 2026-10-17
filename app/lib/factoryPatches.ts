@@ -47,28 +47,29 @@ export const FACTORY_PATCHES: FactoryPatch[] = [
   ]),
 
   preset('clean-sky', 'NIXX Clean Sky', 'Ambient clean with long delay and a deep wash', [
-    comp(-22, 3, 15, 300),
+    comp(-22, 5, 9, 300),
     amp('jazz-clean', 2, 5, 4, 6, 6, 4),
     cab('2x12-twin'),
-    { type: 'chorus', enabled: false, params: { rate: 5, depth: 6, mix: 35 } },
-    delay(480, 55, 25),
+    { type: 'chorus', enabled: false, params: { rate: 5, depth: 6, mix: 9 } },
+    delay(480, 38, 25),
     reverb(60, 60),
-  ]),
+  ], 0.75, 0.35),
 
   preset('funk', 'NIXX Funk', 'Squashed chicken-pickin clean with auto-wah and a slow phaser', [
     gate(-60, 60),
+    { type: 'auto-wah', params: { sense: 55, range: 60, q: 8, mix: 78 }, extraValue: 'up' },
     comp(-30, 6, 5, 150),
-    { type: 'auto-wah', params: { sense: 70, range: 55, q: 10, mix: 100 }, extraValue: 'up' },
-    amp('jazz-clean', 3, 4, 6, 7, 8, 3),
+    amp('jazz-clean', 3, 4, 6, 7, 8, 2),
     cab('2x12-twin'),
     { type: 'phaser', params: { rate: 6, depth: 45, feedback: 30 } },
     reverb(12, 12),
   ]),
 
-  preset('blues-od', 'NIXX Blues OD', 'Compressed tweed pushed into breakup', [
+  preset('blues-od', 'NIXX Blues OD', 'Compressed tweed pushed into breakup through a 4x12', [
+    comp(-20, 4, 48, 470),
     gate(-50, 80),
-    comp(-20, 4, 3, 250),
-    amp('tweed-bass', 6, 5, 6, 6, 7, 2),
+    amp('tweed-bass', 7, 5, 7, 6, 8, 2),
+    cab('4x12-brit'),
   ], 0.86, 0.8),
 
   preset('butter-od', 'NIXX Butter OD', 'Soft distortion into a Twin with delay and reverb', [
@@ -81,21 +82,23 @@ export const FACTORY_PATCHES: FactoryPatch[] = [
   ], 0.86, 0.8),
 
   preset('drive', 'NIXX Drive', 'Pushed Plexi crunch for rock rhythm', [
-    gate(-55, 80),
+    gate(-64, 80),
     od(30, 4500, 70),
-    amp('plexi', 4, 5, 7, 6, 6, 3),
+    amp('plexi', 4, 5, 6, 6, 5, 1),
     cab('4x12-brit'),
     delay(320, 20, 12),
     reverb(15, 15),
   ]),
 
-  preset('lead', 'NIXX Lead', 'Boosted Hot Rod solo with delay and room', [
+  preset('lead', 'NIXX Lead', 'Compressed, boosted Hot Rod solo with double delay and room', [
+    comp(-41, 4, 41, 550),
     gate(-50, 120),
-    od(8, 4600, 33),
-    amp('hot-rod', 7, 5, 7, 6, 5, 2),
+    od(21, 6500, 9),
+    amp('hot-rod', 7, 5, 6, 6, 6, 2),
     cab('4x12-vintage'),
     delay(450, 30, 26),
     reverb(25, 30),
+    delay(320, 20, 30),
   ]),
 
   preset('metal', 'NIXX Metal', 'Distortion into a 5150-style head, tight lows', [

@@ -9,6 +9,7 @@ import { Icon } from './Icons'
 interface EffectsPatchesProps {
   currentRig: PatchRig
   activePatchId: string | null
+  edited: boolean
   onLoad: (patch: Patch) => void
   onActiveChange: (patch: Patch | null) => void
 }
@@ -16,14 +17,20 @@ interface EffectsPatchesProps {
 const errorText = (e: unknown) =>
   e && typeof e === 'object' && 'message' in e && typeof e.message === 'string' ? e.message : 'Something went wrong'
 
-export default function EffectsPatches({ currentRig, activePatchId, onLoad, onActiveChange }: EffectsPatchesProps) {
+export default function EffectsPatches({ currentRig, activePatchId, edited, onLoad, onActiveChange }: EffectsPatchesProps) {
   const { enabled, ready, user, connect, openSignIn } = useAuth()
   const signedIn = Boolean(user)
   const store = useMemo(() => signedIn ? cloudPatchStore(connect) : localPatchStore(), [signedIn, connect])
 
   const [patches, setPatches] = useState<Patch[]>([])
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<'save' | 'update' | 'other' | null>(null)
+  const [done, setDone] = useState<{ id: string; kind: 'saved' | 'updated' } | null>(null)
+  useEffect(() => {
+    if (!done) return
+    const t = setTimeout(() => setDone(null), 2500)
+    return () => clearTimeout(t)
+  }, [done])
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState(() => {
     const preset = FACTORY_PATCHES.find(p => p.id === activePatchId)
@@ -40,11 +47,11 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
 
   const active = patches.find(p => p.id === activePatchId) ?? null
 
-  const run = async (fn: () => Promise<void>) => {
-    setBusy(true)
+  const run = async (fn: () => Promise<void>, kind: 'save' | 'update' | 'other' = 'other') => {
+    setBusy(kind)
     setError(null)
     try { await fn() } catch (e) { setError(errorText(e)) }
-    setBusy(false)
+    setBusy(null)
   }
 
   const saveNew = () => run(async () => {
@@ -54,13 +61,15 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
     setPatches(prev => [patch, ...prev])
     onActiveChange(patch)
     setName('')
-  })
+    setDone({ id: patch.id, kind: 'saved' })
+  }, 'save')
 
   const overwrite = () => active && run(async () => {
     const patch = await store.update(active.id, currentRig)
     setPatches(prev => [patch, ...prev.filter(p => p.id !== patch.id)])
     onActiveChange(patch)
-  })
+    setDone({ id: patch.id, kind: 'updated' })
+  }, 'update')
 
   const remove = (patch: Patch) => {
     if (!confirm(`Delete patch "${patch.name}"?`)) return
@@ -83,7 +92,7 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
         <ul className="fx-presets-grid">
           {FACTORY_PATCHES.map(p => (
             <li key={p.id}>
-              <button className={`fx-preset ${p.id === activePatchId ? 'active' : ''}`} onClick={() => loadFactory(p)} disabled={busy} title={p.description}>
+              <button className={`fx-preset ${p.id === activePatchId ? 'active' : ''}`} onClick={() => loadFactory(p)} disabled={busy !== null} title={p.description}>
                 <span className="fx-preset-name">{p.name.replace(/^NIXX /, '')}</span>
                 <span className="fx-preset-desc">{p.description}</span>
               </button>
@@ -102,14 +111,26 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
           aria-label="Patch name"
           className="fx-patches-input"
         />
-        <button type="submit" className="fx-patches-btn primary" disabled={busy}>
-          <Icon name="save" size={14} /> Save new
+        <button type="submit" className="fx-patches-btn primary" disabled={busy !== null}>
+          {busy === 'save' ? 'Saving…' : <><Icon name="save" size={14} /> Save new</>}
         </button>
-        {active && (
-          <button type="button" className="fx-patches-btn" onClick={overwrite} disabled={busy} title={`Overwrite "${active.name}" with the current rig`}>
-            Update “{active.name}”
-          </button>
-        )}
+        {active && (() => {
+          const justUpdated = done?.id === active.id && done.kind === 'updated'
+          return (
+            <button
+              type="button"
+              className={`fx-patches-btn ${justUpdated ? 'done' : edited ? 'pending' : ''}`}
+              onClick={overwrite}
+              disabled={busy !== null || !edited}
+              title={edited ? `Overwrite "${active.name}" with the current rig` : `"${active.name}" has no unsaved changes`}
+            >
+              {busy === 'update' ? 'Updating…'
+                : justUpdated ? <><Icon name="check" size={14} /> Updated “{active.name}”</>
+                : edited ? <>Update “{active.name}”</>
+                : <>“{active.name}” is up to date</>}
+            </button>
+          )
+        })()}
       </form>
 
       <p className="fx-patches-status">
@@ -122,6 +143,7 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
       </p>
 
       {error && <p className="fx-patches-error" role="alert">{error}</p>}
+      <p className="sr-only" role="status">{done ? (done.kind === 'saved' ? 'Patch saved' : 'Patch updated') : ''}</p>
 
       {loading ? (
         <p className="fx-patches-empty">Loading patches…</p>
@@ -130,12 +152,12 @@ export default function EffectsPatches({ currentRig, activePatchId, onLoad, onAc
       ) : (
         <ul className="fx-patches-list">
           {patches.map(p => (
-            <li key={p.id} className={p.id === activePatchId ? 'active' : ''}>
-              <button className="fx-patch-load" onClick={() => onLoad(p)} disabled={busy}>
+            <li key={p.id} className={`${p.id === activePatchId ? 'active' : ''} ${done?.id === p.id ? 'just-saved' : ''}`}>
+              <button className="fx-patch-load" onClick={() => onLoad(p)} disabled={busy !== null}>
                 <span className="fx-patch-name">{p.name}</span>
                 <span className="fx-patch-date">{new Date(p.updatedAt).toLocaleDateString()}</span>
               </button>
-              <button className="fx-patch-delete" onClick={() => remove(p)} disabled={busy} aria-label={`Delete ${p.name}`} title="Delete">
+              <button className="fx-patch-delete" onClick={() => remove(p)} disabled={busy !== null} aria-label={`Delete ${p.name}`} title="Delete">
                 <Icon name="trash" size={14} />
               </button>
             </li>

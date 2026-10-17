@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react'
 import { getFile, setFile, deleteFile } from '../lib/fileStore'
 import { Icon, type IconName } from './Icons'
-import { autoCorrelate, getClosestNote } from '../lib/pitch'
+import { detectPitch, createTunerSmoother } from '../lib/pitch'
 import type { Patch } from '../lib/patches'
 import EffectsPatches from './EffectsPatches'
 
@@ -199,8 +199,21 @@ const NAM_KEY_PREFIX = 'nam-'
 const MAX_NAM_BYTES = 30_000_000
 // NAM models report loudness relative to this reference; the engine doesn't resample, and most captures are trained at 48 kHz
 const NAM_TARGET_LOUDNESS_DB = -18
-const SAMPLE_RATES = [44100, 48000, 88200, 96000]
-const DEFAULT_SAMPLE_RATE = 48000
+// 0 = use the device's native rate, which avoids an extra resampling stage (and its delay)
+const SAMPLE_RATES = [0, 44100, 48000, 88200, 96000]
+const DEFAULT_SAMPLE_RATE = 0
+const rateLabel = (r: number) => (r ? `${(r / 1000).toFixed(r % 1000 ? 1 : 0)} kHz` : 'Auto')
+
+type LatencyMode = 'low' | 'balanced' | 'quality'
+const LATENCY_MODES: { id: LatencyMode; label: string }[] = [
+  { id: 'low', label: 'Lowest latency' },
+  { id: 'balanced', label: 'Balanced' },
+  { id: 'quality', label: 'Best quality' },
+]
+// Each oversampled WaveShaper delays the signal in Chrome: 2x ≈ 2.7 ms, 4x ≈ 4 ms
+const OVERSAMPLE: Record<LatencyMode, OverSampleType> = { low: 'none', balanced: '2x', quality: '4x' }
+const OVERSAMPLE_DELAY_S: Record<OverSampleType, number> = { none: 0, '2x': 128 / 48000, '4x': 192 / 48000 }
+const NATIVE_COMPRESSOR_DELAY_S = 0.006
 const dbToGain = (db: number) => 10 ** (db / 20)
 
 interface NamSlot {
@@ -462,6 +475,7 @@ interface SavedRig {
   masterVolume: number
   inputGain: number
   sampleRate: number
+  latencyMode?: LatencyMode
 }
 
 function bufferToBase64(buf: ArrayBuffer) {
@@ -476,6 +490,27 @@ function base64ToBuffer(b64: string) {
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
   return bytes.buffer
+}
+
+// Silence before an IR's first reflection is pure delay, so cut it (keeping a few samples of lead-in)
+function trimLeadingSilence(ctx: BaseAudioContext, buf: AudioBuffer): AudioBuffer {
+  let peak = 0
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const d = buf.getChannelData(c)
+    for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]))
+  }
+  if (peak === 0) return buf
+  let onset = buf.length
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const d = buf.getChannelData(c)
+    const i = d.findIndex(v => Math.abs(v) > peak * 0.05)
+    if (i >= 0) onset = Math.min(onset, i)
+  }
+  const start = Math.max(0, onset - 4)
+  if (start === 0) return buf
+  const out = ctx.createBuffer(buf.numberOfChannels, buf.length - start, buf.sampleRate)
+  for (let c = 0; c < buf.numberOfChannels; c++) out.copyToChannel(buf.getChannelData(c).subarray(start), c)
+  return out
 }
 
 function clampNum(v: unknown, min: number, max: number, fallback: number) {
@@ -578,6 +613,10 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
   const [isActive, setIsActive] = useState(false)
   const [muted, setMuted] = useState(true)
   const [sampleRate, setSampleRate] = useState(DEFAULT_SAMPLE_RATE)
+  const [latencyMode, setLatencyMode] = useState<LatencyMode>('low')
+  const latencyModeRef = useRef<LatencyMode>('low')
+  latencyModeRef.current = latencyMode
+  const [latency, setLatency] = useState<{ input: number; effects: number; output: number } | null>(null)
   const [inputLevel, setInputLevel] = useState(0)
   const [outputLevel, setOutputLevel] = useState(0)
   const [vu, setVu] = useState({ in: 0, out: 0, inClip: false, outClip: false })
@@ -619,7 +658,10 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
         if (typeof saved.selectedOutput === 'string') setSelectedOutput(saved.selectedOutput)
         setMasterVolume(clampNum(saved.masterVolume, 0, 1, DEFAULT_MASTER_VOLUME))
         setInputGain(clampNum(saved.inputGain, 0, 2, DEFAULT_INPUT_GAIN))
-        if (typeof saved.sampleRate === 'number' && SAMPLE_RATES.includes(saved.sampleRate)) setSampleRate(saved.sampleRate)
+        // Rigs saved before latency modes existed stored 48 kHz by default; move those to Auto
+        const legacyDefault = saved.latencyMode === undefined && saved.sampleRate === 48000
+        if (typeof saved.sampleRate === 'number' && SAMPLE_RATES.includes(saved.sampleRate) && !legacyDefault) setSampleRate(saved.sampleRate)
+        if (saved.latencyMode && LATENCY_MODES.some(m => m.id === saved.latencyMode)) setLatencyMode(saved.latencyMode)
       }
       const active = JSON.parse(localStorage.getItem(ACTIVE_PATCH_KEY) || 'null') as Partial<ActivePatch> | null
       if (active && typeof active.id === 'string' && typeof active.name === 'string' && typeof active.snapshot === 'string') {
@@ -631,9 +673,9 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
 
   useEffect(() => {
     if (!loaded) return
-    const rig: SavedRig = { effects, selectedInput, selectedOutput, masterVolume, inputGain, sampleRate }
+    const rig: SavedRig = { effects, selectedInput, selectedOutput, masterVolume, inputGain, sampleRate, latencyMode }
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rig)) } catch {}
-  }, [loaded, effects, selectedInput, selectedOutput, masterVolume, inputGain, sampleRate])
+  }, [loaded, effects, selectedInput, selectedOutput, masterVolume, inputGain, sampleRate, latencyMode])
 
   useEffect(() => {
     if (selectedInput && inputDevices.length && !inputDevices.some(d => d.deviceId === selectedInput)) setSelectedInput('')
@@ -748,6 +790,8 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
   const namPendingRef = useRef<Set<EffectId>>(new Set())
   const [namLoading, setNamLoading] = useState<Set<EffectId>>(new Set())
   const appliedChainRef = useRef<EffectInstance[] | null>(null)
+  const compressorWorkletRef = useRef(false)
+  const effectsDelayRef = useRef(0)
   const inputGainRef = useRef<GainNode | null>(null)
   const masterGainRef = useRef<GainNode | null>(null)
   const inputAnalyserRef = useRef<AnalyserNode | null>(null)
@@ -789,7 +833,7 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
         return ctx.decodeAudioData(bytes)
       })
       .then(buf => {
-        irBuffersRef.current.set(key, buf)
+        irBuffersRef.current.set(key, trimLeadingSilence(ctx, buf))
         if (audioCtxRef.current === ctx && appliedChainRef.current) connectChain(appliedChainRef.current)
       })
       .catch(() => setError('Could not decode the impulse response file.'))
@@ -898,7 +942,16 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
         gateTimersRef.current.push(timer)
         return [input, gate]
       }
-      case 'compressor': { const c = ctx.createDynamicsCompressor(); c.threshold.value = fx.params.threshold; c.ratio.value = fx.params.ratio; c.attack.value = fx.params.attack / 1000; c.release.value = fx.params.release / 1000; c.knee.value = 6; return [c] }
+      case 'compressor': {
+        const { threshold, ratio, attack, release } = fx.params
+        if (compressorWorkletRef.current) {
+          return [new AudioWorkletNode(ctx, 'fx-compressor', {
+            parameterData: { threshold, ratio, attack: attack / 1000, release: release / 1000, knee: 6 },
+          })]
+        }
+        effectsDelayRef.current += NATIVE_COMPRESSOR_DELAY_S
+        const c = ctx.createDynamicsCompressor(); c.threshold.value = threshold; c.ratio.value = ratio; c.attack.value = attack / 1000; c.release.value = release / 1000; c.knee.value = 6; return [c]
+      }
       case 'eq': {
         const filters = EQ_BANDS.map((hz, i) => {
           const f = ctx.createBiquadFilter()
@@ -917,7 +970,7 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
         const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = isOd ? 120 : 90; hp.Q.value = 0.7
         const preLp = ctx.createBiquadFilter(); preLp.type = 'lowpass'; preLp.frequency.value = 6500; preLp.Q.value = 0.7
         const hump = ctx.createBiquadFilter(); hump.type = 'peaking'; hump.frequency.value = 720; hump.Q.value = 0.8; hump.gain.value = isOd ? 5 : 0
-        const ws = ctx.createWaveShaper(); ws.curve = makeClipCurve(g, mode); ws.oversample = '4x'
+        const ws = ctx.createWaveShaper(); ws.curve = makeClipCurve(g, mode); ws.oversample = OVERSAMPLE[latencyModeRef.current]; effectsDelayRef.current += OVERSAMPLE_DELAY_S[ws.oversample]
         const dc = ctx.createBiquadFilter(); dc.type = 'highpass'; dc.frequency.value = 25
         const t = ctx.createBiquadFilter(); t.type = 'lowpass'; t.frequency.value = fx.params.tone; t.Q.value = 0.6
         const l = ctx.createGain(); l.gain.value = (fx.params.level / 50) * driveCompensation(g)
@@ -1023,7 +1076,7 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
         if (model.bright) filter('highshelf', 2500, 0.7, model.bright)
         const stageGain = model.stages === 2 ? Math.sqrt(g) * 1.2 : g
         for (let s = 0; s < model.stages; s++) {
-          const ws = ctx.createWaveShaper(); ws.curve = makeClipCurve(stageGain, 'soft', model.asym); ws.oversample = '4x'
+          const ws = ctx.createWaveShaper(); ws.curve = makeClipCurve(stageGain, 'soft', model.asym); ws.oversample = OVERSAMPLE[latencyModeRef.current]; effectsDelayRef.current += OVERSAMPLE_DELAY_S[ws.oversample]
           chain(ws)
           if (s < model.stages - 1) { filter('highpass', model.tight * 1.5); filter('lowpass', 6000) }
         }
@@ -1101,6 +1154,7 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
         namSlotsRef.current.delete(id)
       }
     }
+    effectsDelayRef.current = 0
     let prev: AudioNode = inAn
     for (const fx of chain) {
       const nodes = buildEffectNodes(ctx, fx)
@@ -1116,11 +1170,16 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
     try {
       setError(null)
       const constraints: MediaTrackConstraints = { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      ;(constraints as Record<string, unknown>).latency = { ideal: 0 }
       if (selectedInput) (constraints as Record<string, unknown>).deviceId = { exact: selectedInput }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: constraints })
       streamRef.current = stream
-      const ctx = new AudioContext({ latencyHint: 'interactive', sampleRate })
+      const ctx = new AudioContext(sampleRate ? { latencyHint: 'interactive', sampleRate } : { latencyHint: 'interactive' })
       audioCtxRef.current = ctx
+      try {
+        await ctx.audioWorklet.addModule('/worklets/fx-compressor.js')
+        compressorWorkletRef.current = true
+      } catch { compressorWorkletRef.current = false }
       if (selectedOutput && 'setSinkId' in ctx) { try { await (ctx as unknown as { setSinkId: (id: string) => Promise<void> }).setSinkId(selectedOutput) } catch {} }
       const source = ctx.createMediaStreamSource(stream)
       const inGain = ctx.createGain(); inGain.gain.value = inputGain; inputGainRef.current = inGain
@@ -1154,6 +1213,31 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
   }, [effects, isActive, connectChain])
 
   useEffect(() => () => { stopAudio() }, [stopAudio])
+
+  // Oversampling is baked into the WaveShaper nodes, so a mode change rebuilds the chain
+  useEffect(() => {
+    if (isActive && appliedChainRef.current) connectChain(appliedChainRef.current)
+  }, [latencyMode, isActive, connectChain])
+
+  // outputLatency settles a moment after start (and changes with Bluetooth), so poll it gently
+  useEffect(() => {
+    if (!isActive) { setLatency(null); return }
+    const read = () => {
+      const ctx = audioCtxRef.current
+      if (!ctx) return
+      const track = streamRef.current?.getAudioTracks()[0]
+      const trackLatency = (track?.getSettings() as { latency?: number } | undefined)?.latency ?? 0
+      const next = {
+        input: Math.round(trackLatency * 1000),
+        effects: Math.round(effectsDelayRef.current * 1000),
+        output: Math.round(((ctx.baseLatency || 0) + (ctx.outputLatency || 0)) * 1000),
+      }
+      setLatency(prev => (prev && prev.input === next.input && prev.effects === next.effects && prev.output === next.output ? prev : next))
+    }
+    read()
+    const t = setInterval(read, 1000)
+    return () => clearInterval(t)
+  }, [isActive])
 
   useEffect(() => {
     if (!isActive) return
@@ -1192,15 +1276,17 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
     const an = tunerAnalyserRef.current, ctx = audioCtxRef.current
     if (!an || !ctx) return
     const buf = new Float32Array(an.fftSize)
+    const smoother = createTunerSmoother()
     let silentFrames = 0
     const timer = setInterval(() => {
       an.getFloatTimeDomainData(buf)
-      const hz = autoCorrelate(buf, ctx.sampleRate)
-      if (hz > 25 && hz < 1500) {
+      const hz = detectPitch(buf, ctx.sampleRate)
+      if (hz > 0) {
         silentFrames = 0
-        const { note, cents } = getClosestNote(hz)
-        setTunerReading({ note, cents, hz })
+        const next = smoother.push(hz)
+        setTunerReading(prev => (prev && next && prev.note === next.note && prev.cents === next.cents ? prev : next))
       } else if (++silentFrames > 15) {
+        smoother.reset()
         setTunerReading(null)
       }
     }, 50)
@@ -1309,7 +1395,7 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
           </select>
           <Icon name="settings" size={14} className="fx-rate-icon" />
           <select value={sampleRate} onChange={e => setSampleRate(Number(e.target.value))} className="fx-device-select fx-rate-select" title="Sample rate">
-            {SAMPLE_RATES.map(r => <option key={r} value={r}>{(r / 1000).toFixed(r % 1000 ? 1 : 0)} kHz</option>)}
+            {SAMPLE_RATES.map(r => <option key={r} value={r}>{rateLabel(r)}</option>)}
           </select>
         </div>
         <div className="fx-meter-group">
@@ -1378,9 +1464,19 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
 
       <label className="fx-settings-label" htmlFor="fx-set-rate">Sample rate</label>
       <select id="fx-set-rate" value={sampleRate} onChange={e => setSampleRate(Number(e.target.value))} className="fx-device-select fx-settings-rate">
-        {SAMPLE_RATES.map(r => <option key={r} value={r}>{(r / 1000).toFixed(r % 1000 ? 1 : 0)} kHz</option>)}
+        {SAMPLE_RATES.map(r => <option key={r} value={r}>{rateLabel(r)}</option>)}
       </select>
-      <p className="fx-settings-hint">Changing a device or rate restarts audio.</p>
+      <p className="fx-settings-hint">Changing a device or rate restarts audio. Auto avoids resampling delay.</p>
+
+      <label className="fx-settings-label" htmlFor="fx-set-latency">Processing</label>
+      <select id="fx-set-latency" value={latencyMode} onChange={e => setLatencyMode(e.target.value as LatencyMode)} className="fx-device-select">
+        {LATENCY_MODES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+      </select>
+      <p className="fx-settings-hint">
+        {latency
+          ? <>Latency ≈ <strong>{latency.input + latency.effects + latency.output} ms</strong> (input {latency.input} · effects {latency.effects} · output {latency.output} ms){latency.output > 40 && ' — Bluetooth output adds a lot of delay; use wired headphones or an audio interface.'}</>
+          : 'Higher quality oversamples drive and amp stages, which adds a few ms per stage.'}
+      </p>
 
       <span className="fx-settings-label">Pedal style</span>
       {renderSkinSwitch()}
@@ -1572,14 +1668,14 @@ export default function EffectsPage({ variant = 'page', collapsed = false, onTog
 
       {panelPopup && (
         <div className="fx-popup-backdrop" onClick={() => setPanelPopup(null)}>
-          <div className="fx-popup fx-popup-panel" role="dialog" aria-modal="true" aria-label={panelTitle} onClick={e => e.stopPropagation()}>
+          <div className={`fx-popup fx-popup-panel ${panelPopup === 'patches' ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={panelTitle} onClick={e => e.stopPropagation()}>
             <div className="fx-popup-head">
               <h3>{panelTitle}</h3>
               <button className="fx-popup-close" onClick={() => setPanelPopup(null)} aria-label="Close"><Icon name="x" size={14} /></button>
             </div>
             {panelPopup === 'add' && renderAddPicker()}
             {panelPopup === 'patches' && (
-              <EffectsPatches currentRig={{ effects, masterVolume, inputGain }} activePatchId={activePatchId} onActiveChange={onPatchSaved} onLoad={loadPatch} />
+              <EffectsPatches currentRig={{ effects, masterVolume, inputGain }} activePatchId={activePatchId} edited={patchEdited} onActiveChange={onPatchSaved} onLoad={loadPatch} />
             )}
             {panelPopup === 'io' && renderAudioSettings()}
           </div>

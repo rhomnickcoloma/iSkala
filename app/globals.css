@@ -6578,7 +6578,7 @@ footer {
   border-radius: 2px;
   background: var(--tuner-color);
   box-shadow: 0 0 10px var(--tuner-color);
-  transition: left 0.1s ease-out, background 0.15s;
+  transition: left 0.25s ease-out, background 0.2s;
 }
 
 .fx-tuner-labels {
@@ -7540,6 +7540,15 @@ footer {
 .fx-patches-btn.primary { background: #27ae60; border-color: #27ae60; color: #fff; font-weight: 600; }
 .fx-patches-btn:hover:not(:disabled) { filter: brightness(1.12); }
 .fx-patches-btn:disabled { opacity: 0.6; cursor: wait; }
+.fx-patches-btn.pending { border-color: #f39c12; color: #f5c26b; background: rgba(243, 156, 18, 0.1); }
+.fx-patches-btn.done,
+.fx-patches-btn.done:disabled { opacity: 1; border-color: #2ecc71; color: #2ecc71; background: rgba(46, 204, 113, 0.12); cursor: default; }
+.fx-patches-btn:disabled:not(.done) { cursor: not-allowed; }
+.fx-patches-list li.just-saved { animation: fx-patch-saved 1.4s ease-out; }
+@keyframes fx-patch-saved {
+  0%, 30% { background: rgba(46, 204, 113, 0.3); border-color: #2ecc71; box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.25); }
+}
+@media (prefers-reduced-motion: reduce) { .fx-patches-list li.just-saved { animation: none; } }
 
 .fx-patches-status { margin: 0.7rem 0 0; font-size: 0.75rem; color: #888; line-height: 1.5; }
 
@@ -8003,6 +8012,10 @@ body { padding-bottom: var(--fx-drawer-h, 0px); }
 
 .fx-popup-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
 .fx-popup-head h3 { margin: 0; font-size: 0.95rem; color: #eee; }
+.fx-popup-panel.wide { width: min(980px, 100%); }
+@media (min-width: 769px) {
+  .fx-popup-panel.wide .fx-presets-grid { grid-template-columns: repeat(4, 1fr); }
+}
 .fx-popup-panel .fx-patches,
 .fx-popup-panel .fx-add-picker { margin: 0; }
 
@@ -8744,3 +8757,25 @@ body { padding-bottom: var(--fx-drawer-h, 0px); }
   .page-title .instrument-switch-btn { padding: 0.4rem 0.6rem; }
   .fretboard-container.chord-player-modal { max-height: none; border-radius: 12px; }
 }
+
+/* Live note highlighting from the mic */
+.listen-btn { display: inline-flex; align-items: center; gap: 0.35rem; min-width: 4.5rem; justify-content: center; font-variant-numeric: tabular-nums; }
+.listen-btn.active { background: rgba(46, 204, 113, 0.18); border-color: #2ecc71; color: #2ecc71; }
+.listen-dot { width: 7px; height: 7px; border-radius: 50%; background: #2ecc71; animation: listen-pulse 1.2s ease-in-out infinite; }
+.listen-error { color: #e74c3c; font-size: 0.75rem; }
+.live-note-ring { fill: rgba(46, 204, 113, 0.25); stroke: #2ecc71; stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: live-ring 0.9s ease-out infinite; }
+@keyframes listen-pulse { 50% { opacity: 0.3; } }
+@keyframes live-ring { from { transform: scale(0.8); opacity: 1; } to { transform: scale(1.25); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .listen-dot, .live-note-ring { animation: none; }
+}
+@media (min-width: 769px) {
+  .listen-icon { display: none; }
+}
+@media (max-width: 768px) {
+  .listen-btn { min-width: 0; }
+  .listen-label { display: none; }
+}
+.live-note-trail { animation: live-trail 1.5s ease-out forwards; }
+@keyframes live-trail { from { opacity: 0.75; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .live-note-trail { animation: none; opacity: 0.4; } }

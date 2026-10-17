@@ -21,6 +21,8 @@ import Metronome from './Metronome'
 import ScaleInfoPanel from './ScaleInfoPanel'
 import ProgressionView from './ProgressionView'
 import { Icon } from './Icons'
+import { useLiveNote, noteNameToMidi } from '../lib/useLiveNote'
+import { ListenButton, LiveNoteLayer } from './LiveNotes'
 
 const FRET_WIDTH = 72
 const MAX_FRET = 24
@@ -123,6 +125,13 @@ export default function Fretboard() {
   const pathname = usePathname()
   const isNixx = pathname === '/nixx'
   const tuning = instrument.tuning
+  const live = useLiveNote(Math.min(...instrument.tunerStrings.map(s => s.frequency)))
+  // Open-string MIDI notes in render order (high string first, matching tuning.slice().reverse())
+  const openMidis = useMemo(
+    () => instrument.tunerStrings.map(s => noteNameToMidi(s.note) ?? -1).reverse(),
+    [instrument]
+  )
+  const reversedTuning = useMemo(() => tuning.slice().reverse(), [tuning])
   const STRING_COUNT = instrument.stringCount
 
   const [selectedKey, setSelectedKey] = useState<string>('A')
@@ -872,6 +881,7 @@ export default function Fretboard() {
               <Icon name="eye-off" size="1em" />
             </button>
           </div>
+          <ListenButton live={live} />
         </div>
         <div className="header-center">
           <h2>{selectedKey} {currentScale?.name}</h2>
@@ -1522,6 +1532,16 @@ export default function Fretboard() {
               )
             })
           })}
+
+          <LiveNoteLayer
+            live={live}
+            openMidis={openMidis}
+            openNotes={reversedTuning}
+            startFret={startFret}
+            fretCount={fretCount}
+            fretWidth={FRET_WIDTH}
+            labelRotation={labelRotation}
+          />
 
           {/* Slide connections with green outlines (rendered on top of notes) */}
           {slideConnections.map((slide, index) => {
