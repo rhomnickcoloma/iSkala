@@ -341,6 +341,16 @@ const EFFECT_CATALOG: Record<string, EffectDef> = {
       { key: 'feedback', label: 'FB', min: 0, max: 90, step: 1, defaultValue: 40, unit: '%' },
     ],
   },
+  'auto-wah': {
+    type: 'auto-wah', label: 'Auto Wah', color: '#e8d0a8', icon: 'audio-waveform',
+    params: [
+      { key: 'sense', label: 'Sense', min: 1, max: 100, step: 1, defaultValue: 55, unit: '%' },
+      { key: 'range', label: 'Range', min: 1, max: 100, step: 1, defaultValue: 60, unit: '%' },
+      { key: 'q', label: 'Q', min: 1, max: 20, step: 1, defaultValue: 8, unit: '' },
+      { key: 'mix', label: 'Mix', min: 0, max: 100, step: 1, defaultValue: 100, unit: '%' },
+    ],
+    extra: { options: ['up', 'down'], key: 'mode', label: 'Mode' },
+  },
   'tremolo': {
     type: 'tremolo', label: 'Tremolo', color: '#d8e8c8', icon: 'activity',
     params: [
@@ -946,6 +956,37 @@ export default function EffectsPage({ onClose, variant = 'page', collapsed = fal
         const fb = ctx.createGain(); fb.gain.value = fx.params.feedback / 100; const merge = ctx.createGain()
         split.connect(dry); split.connect(filters[0]); filters[filters.length - 1].connect(fb); fb.connect(filters[0])
         filters[filters.length - 1].connect(wet); dry.connect(merge); wet.connect(merge); lfo.connect(lfoG); startLfo(lfo); return [split, merge]
+      }
+      case 'auto-wah': {
+        // Envelope-driven bandpass — louder notes push the filter open (or closed in "down" mode)
+        const input = ctx.createGain()
+        const an = ctx.createAnalyser(); an.fftSize = 256
+        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = fx.params.q
+        const minF = 220
+        const maxF = minF + fx.params.range * 32
+        const invert = fx.extraValue === 'down'
+        bp.frequency.value = invert ? maxF : minF
+        const dry = ctx.createGain(); dry.gain.value = 1 - fx.params.mix / 100
+        const wet = ctx.createGain(); wet.gain.value = fx.params.mix / 100
+        const merge = ctx.createGain()
+        input.connect(an); input.connect(dry); input.connect(bp); bp.connect(wet); dry.connect(merge); wet.connect(merge)
+        const buf = new Float32Array(an.fftSize)
+        const sense = fx.params.sense / 100
+        let env = 0
+        const timer = window.setInterval(() => {
+          an.getFloatTimeDomainData(buf)
+          let sum = 0
+          for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i]
+          const rms = Math.sqrt(sum / buf.length)
+          // Soft-knee map: typical muted funk chops sit around 0.02–0.12 RMS
+          const target = Math.min(1, Math.pow(rms * (1.2 + sense * 12), 0.65))
+          env += (target - env) * (target > env ? 0.45 : 0.08)
+          const pos = invert ? 1 - env : env
+          const freq = minF * Math.pow(maxF / minF, pos)
+          bp.frequency.setTargetAtTime(freq, ctx.currentTime, 0.012)
+        }, 10)
+        gateTimersRef.current.push(timer)
+        return [input, merge]
       }
       case 'tremolo': {
         const g = ctx.createGain(); g.gain.value = 1; const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = fx.params.rate / 10

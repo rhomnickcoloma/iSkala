@@ -676,7 +676,7 @@ test.describe('NIXX presets', () => {
   const PRESETS: [string, string[]][] = [
     ['Clean', ['Noise Gate', 'Compressor', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
     ['Clean Sky', ['Compressor', 'Amplifier', 'Cabinet', 'Chorus', 'Delay', 'Reverb']],
-    ['Funk', ['Noise Gate', 'Compressor', 'Amplifier', 'Cabinet', 'Phaser', 'Reverb']],
+    ['Funk', ['Noise Gate', 'Compressor', 'Auto Wah', 'Amplifier', 'Cabinet', 'Phaser', 'Reverb']],
     ['Blues OD', ['Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', 'Reverb']],
     ['Butter OD', ['Noise Gate', 'Compressor', 'Overdrive', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
     ['Drive', ['Noise Gate', 'Overdrive', 'Amplifier', 'Cabinet', 'Delay', 'Reverb']],
