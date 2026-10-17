@@ -51,20 +51,20 @@ function patternFor(style: BackingSpec['style']): Drum[][] {
   return p
 }
 
-function voiceChord(symbol: string): { bass: number; stabs: number[] } {
+function voiceChord(symbol: string): { bass: number; tones: number[] } {
   const parsed = parseChordSymbol(symbol)
-  if (!parsed) return { bass: 0, stabs: [] }
+  if (!parsed) return { bass: 0, tones: [] }
   const pcs = chordTonePcs(parsed)
   const root = pcs[0] ?? 0
   const bassMidi = 33 + ((root - 9 + 12) % 12)
-  const stabs = pcs.slice(0, 4).map((pc, i) => {
-    let midi = 55 + ((pc - 7 + 12) % 12)
-    if (i === 1) midi += 12
-    if (i >= 2 && midi < 62) midi += 12
-    if (midi > 76) midi -= 12
+  // Close keyboard voicing around E3–A4 so the quality (m / 7) is obvious.
+  const tones = pcs.slice(0, 4).map((pc, i) => {
+    let midi = 52 + ((pc - 4 + 12) % 12)
+    if (i > 0 && midi <= 54) midi += 12
+    if (midi > 72) midi -= 12
     return midiToFreq(midi)
   })
-  return { bass: midiToFreq(bassMidi), stabs }
+  return { bass: midiToFreq(bassMidi), tones }
 }
 
 function noiseBuffer(ctx: AudioContext, seconds: number): AudioBuffer {
@@ -99,15 +99,20 @@ function envGain(ctx: AudioContext, dest: AudioNode, when: number, peak: number,
 interface Bus {
   drums: GainNode
   bass: GainNode
-  stabs: GainNode
+  chords: GainNode
   master: GainNode
   noise: AudioBuffer
+}
+
+interface HeldChord {
+  oscs: OscillatorNode[]
+  gain: GainNode
 }
 
 function playKick(ctx: AudioContext, dest: AudioNode, when: number) {
   const body = ctx.createOscillator()
   const bodyFilter = ctx.createBiquadFilter()
-  const bodyGain = envGain(ctx, dest, when, 0.72, 0.006, 0.32)
+  const bodyGain = envGain(ctx, dest, when, 0.42, 0.006, 0.28)
   body.type = 'sine'
   body.frequency.setValueAtTime(148, when)
   body.frequency.exponentialRampToValueAtTime(46, when + 0.14)
@@ -146,7 +151,7 @@ function playSnare(ctx: AudioContext, dest: AudioNode, noise: AudioBuffer, when:
   src.buffer = noise
   const hp = ctx.createBiquadFilter()
   const bp = ctx.createBiquadFilter()
-  const g = envGain(ctx, dest, when, 0.28, 0.002, 0.18)
+  const g = envGain(ctx, dest, when, 0.18, 0.002, 0.16)
   hp.type = 'highpass'
   hp.frequency.value = 900
   bp.type = 'bandpass'
@@ -165,7 +170,7 @@ function playHat(ctx: AudioContext, dest: AudioNode, noise: AudioBuffer, when: n
   const hp = ctx.createBiquadFilter()
   const peak = ctx.createBiquadFilter()
   const decay = open ? 0.2 : 0.045
-  const g = envGain(ctx, dest, when, open ? 0.07 : 0.034, 0.001, decay)
+  const g = envGain(ctx, dest, when, open ? 0.045 : 0.02, 0.001, decay)
   hp.type = 'highpass'
   hp.frequency.value = open ? 6200 : 7800
   hp.Q.value = 0.6
@@ -182,7 +187,7 @@ function playHat(ctx: AudioContext, dest: AudioNode, noise: AudioBuffer, when: n
 
 function playBass(ctx: AudioContext, dest: AudioNode, when: number, freq: number, dur: number) {
   const filter = ctx.createBiquadFilter()
-  const g = envGain(ctx, dest, when, 0.28, 0.012, dur)
+  const g = envGain(ctx, dest, when, 0.22, 0.012, dur)
   filter.type = 'lowpass'
   filter.frequency.setValueAtTime(720, when)
   filter.frequency.exponentialRampToValueAtTime(180, when + dur * 0.7)
@@ -207,28 +212,55 @@ function playBass(ctx: AudioContext, dest: AudioNode, when: number, freq: number
   square.stop(when + dur + 0.03)
 }
 
-function playStab(ctx: AudioContext, dest: AudioNode, when: number, freqs: number[], style: BackingSpec['style']) {
-  const short = style === 'funk' || style === 'fusion'
-  const dur = short ? 0.16 : style === 'jazz' ? 0.42 : 0.28
-  const filter = ctx.createBiquadFilter()
-  const g = envGain(ctx, dest, when, 0.2, 0.008, dur)
-  filter.type = 'lowpass'
-  filter.frequency.setValueAtTime(short ? 2400 : 1800, when)
-  filter.frequency.exponentialRampToValueAtTime(short ? 700 : 900, when + dur * 0.65)
-  filter.Q.value = 0.8
-  filter.connect(g)
+function releaseHeld(ctx: AudioContext, held: HeldChord | null, when: number, fade = 0.07) {
+  if (!held) return
+  held.gain.gain.cancelScheduledValues(when)
+  const current = Math.max(held.gain.gain.value, 0.0002)
+  held.gain.gain.setValueAtTime(current, when)
+  held.gain.gain.exponentialRampToValueAtTime(0.0001, when + fade)
+  held.oscs.forEach(o => { try { o.stop(when + fade + 0.03) } catch { /* already stopped */ } })
+}
 
+function startHeldChord(ctx: AudioContext, dest: AudioNode, when: number, freqs: number[], dur: number): HeldChord {
+  const filter = ctx.createBiquadFilter()
+  const gain = ctx.createGain()
+  filter.type = 'lowpass'
+  filter.frequency.setValueAtTime(2600, when)
+  filter.frequency.linearRampToValueAtTime(1900, when + 0.12)
+  filter.Q.value = 0.7
+  gain.gain.setValueAtTime(0.0001, when)
+  gain.gain.exponentialRampToValueAtTime(0.62, when + 0.025)
+  gain.gain.linearRampToValueAtTime(0.5, when + Math.min(0.18, dur * 0.2))
+  gain.gain.setValueAtTime(0.5, when + Math.max(0.2, dur - 0.12))
+  gain.gain.exponentialRampToValueAtTime(0.0001, when + dur)
+  filter.connect(gain)
+  gain.connect(dest)
+
+  const oscs: OscillatorNode[] = []
   freqs.forEach((freq, i) => {
     const osc = ctx.createOscillator()
     const mix = ctx.createGain()
-    osc.type = i === 0 ? 'triangle' : 'sine'
-    osc.frequency.setValueAtTime(freq * (i === 2 ? 1.003 : 1), when)
-    mix.gain.value = 0.55 / (i + 1)
+    osc.type = i % 2 === 0 ? 'triangle' : 'sine'
+    osc.frequency.setValueAtTime(freq, when)
+    mix.gain.value = 0.9 / Math.sqrt(freqs.length)
     osc.connect(mix)
     mix.connect(filter)
-    osc.start(when + i * 0.006)
+    osc.start(when)
     osc.stop(when + dur + 0.04)
+    oscs.push(osc)
+
+    const detune = ctx.createOscillator()
+    const detuneMix = ctx.createGain()
+    detune.type = 'triangle'
+    detune.frequency.setValueAtTime(freq * 1.004, when)
+    detuneMix.gain.value = 0.22 / freqs.length
+    detune.connect(detuneMix)
+    detuneMix.connect(filter)
+    detune.start(when)
+    detune.stop(when + dur + 0.04)
+    oscs.push(detune)
   })
+  return { oscs, gain }
 }
 
 function connectBus(ctx: AudioContext): Bus {
@@ -267,16 +299,16 @@ function connectBus(ctx: AudioContext): Bus {
   wet.connect(limit)
 
   const drums = ctx.createGain()
-  drums.gain.value = 0.95
+  drums.gain.value = 0.55
   drums.connect(master)
   const bass = ctx.createGain()
-  bass.gain.value = 0.9
+  bass.gain.value = 0.7
   bass.connect(master)
-  const stabs = ctx.createGain()
-  stabs.gain.value = 0.85
-  stabs.connect(master)
+  const chords = ctx.createGain()
+  chords.gain.value = 1.15
+  chords.connect(master)
 
-  return { drums, bass, stabs, master, noise: noiseBuffer(ctx, 0.35) }
+  return { drums, bass, chords, master, noise: noiseBuffer(ctx, 0.35) }
 }
 
 export function useBackingEngine() {
@@ -288,15 +320,20 @@ export function useBackingEngine() {
   const stepRef = useRef(0)
   const nextTimeRef = useRef(0)
   const specRef = useRef<BackingSpec | null>(null)
+  const heldRef = useRef<HeldChord | null>(null)
+  const lastChordRef = useRef('')
 
   const stop = useCallback(() => {
     window.clearTimeout(timerRef.current)
     const ctx = ctxRef.current
     const bus = busRef.current
     if (ctx && bus) {
+      releaseHeld(ctx, heldRef.current, ctx.currentTime, 0.05)
+      heldRef.current = null
       bus.master.gain.cancelScheduledValues(ctx.currentTime)
       bus.master.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.03)
     }
+    lastChordRef.current = ''
     setPlaying(false)
     setChordIndex(-1)
     stepRef.current = 0
@@ -336,19 +373,24 @@ export function useBackingEngine() {
       const chordIdx = Math.floor(step / stepsPerChord) % current.chords.length
       const stepInBar = step % 16
       if (stepInBar === 0 || step % 4 === 0) setChordIndex(chordIdx)
-      const voice = voiceChord(current.chords[chordIdx] ?? '')
+      const symbol = current.chords[chordIdx] ?? ''
+      const voice = voiceChord(symbol)
       for (const d of pattern[stepInBar] ?? []) {
         if (d === 'kick') playKick(ctx, bus.drums, when)
         else if (d === 'snare') playSnare(ctx, bus.drums, bus.noise, when)
         else playHat(ctx, bus.drums, bus.noise, when, d === 'open')
       }
       if (voice.bass) {
-        if (stepInBar === 0) playBass(ctx, bus.bass, when, voice.bass, 0.28)
+        if (stepInBar === 0) playBass(ctx, bus.bass, when, voice.bass, 0.32)
         else if (stepInBar === 6) playBass(ctx, bus.bass, when, voice.bass * 1.5, 0.12)
         else if (stepInBar === 10) playBass(ctx, bus.bass, when, voice.bass, 0.14)
       }
-      if (voice.stabs.length && (stepInBar === 0 || stepInBar === 6 || (current.style === 'funk' && stepInBar === 10))) {
-        playStab(ctx, bus.stabs, when, voice.stabs, current.style)
+      const chordChanged = symbol !== lastChordRef.current
+      if (voice.tones.length && (chordChanged || step % stepsPerChord === 0)) {
+        lastChordRef.current = symbol
+        releaseHeld(ctx, heldRef.current, when, 0.06)
+        const hold = stepsPerChord * sixteenths - 0.04
+        heldRef.current = startHeldChord(ctx, bus.chords, when, voice.tones, Math.max(0.35, hold))
       }
     }
 
