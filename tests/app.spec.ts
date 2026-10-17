@@ -686,7 +686,7 @@ test.describe('Site header', () => {
     await setInstrumentCookie(page)
     await page.goto('/guitar')
     await expect(page.locator('.site-header .instrument-switch-btn')).toHaveCount(0)
-    await expect(page.locator('.page-title-row .instrument-switch-btn')).toBeVisible()
+    await expect(page.locator('.page-title .instrument-switch-btn')).toBeVisible()
   })
 
   test('menu links open home, compare and backing track and mark the current page', async ({ page }) => {

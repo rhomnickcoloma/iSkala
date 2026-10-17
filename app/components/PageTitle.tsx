@@ -15,15 +15,13 @@ export function InstrumentSwitch() {
   )
 }
 
-// Page title card shared by the scale, compare and backing track pages
+// Slim page title bar shared by the scale, compare and backing track pages
 export default function PageTitle({ icon, title, subtitle, action }: { icon?: ReactNode; title: string; subtitle: string; action?: ReactNode }) {
   return (
     <section className="page-title">
-      <div className="page-title-row">
-        <h1>{icon}{title}</h1>
-        {action}
-      </div>
+      <h1>{icon}{title}</h1>
       <p className="subtitle">{subtitle}</p>
+      {action}
     </section>
   )
 }
